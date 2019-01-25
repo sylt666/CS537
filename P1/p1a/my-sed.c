@@ -19,7 +19,6 @@ int main(int argc, char *argv[]) {
 	else {
             char* find_term = argv[1];
             char* replace_term = argv[2];
-            printf("looking for file");
             for (int i = 3; i < argc; i++) {
 			    FILE *fp = fopen(argv[i], "r");
 			    if (fp == NULL) {
