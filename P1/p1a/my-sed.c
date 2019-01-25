@@ -33,8 +33,8 @@ int main(int argc, char *argv[]) {
                     char* line = NULL;
                     size_t length = 0;
                     ssize_t read = 0;
-                    while((read = getLine(&line, &length, fp))){
-                        if (strstr(line, argv[1] != NULL)) {
+                    while((read = getline(&line, &length, fp))){
+                        if (strstr(line, argv[1]) != NULL) {
                             printf("%s", line);
                         }
                     }
