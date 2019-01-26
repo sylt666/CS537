@@ -1,6 +1,9 @@
 #include<stdio.h>
 #include<stdlib.h>
 #include<string.h>
+#include<errno.h>
+
+#define BUFFER_SIZE (512)
 
 char *replaceWord(const char *str, const char *old, const char *new) {
     char *result; 
@@ -48,19 +51,38 @@ int main(int argc, char *argv[]) {
 		exit(1);
 	}
 	else if (argc == 1) {
-		exit(0);
+		exit(1);
 	}	
-    else if (argc < 4) {
+    else if (argc == 2) {
 		printf("my-sed: find_term replace_term [file …]\n");
         exit(0);
-	}
+	} else if (argc == 3 || argc > 4) {
+        char* find_term = argv[1];
+        char* replace_term = argv[2];
+
+        char* line = NULL;
+        size_t length = 0;
+        ssize_t read = 0;
+        while ((read = getline(&line, &length, stdin) != -1)) {
+            if (strstr(line, argv[1]) != NULL) {
+                char *result = NULL; 
+
+                result = replaceWord(line, find_term, replace_term); 
+                printf("%s", result); 
+                free(result);                          
+            } else {
+                printf("%s", line);
+            }
+        }
+    }
 	else {
             for (int i = 3; i < argc; i++) {
 			    FILE *fp = fopen(argv[i], "r");
 			    if (fp == NULL) {
 				    printf("my-sed: cannot open file\n");
 				    exit(1);
-			    } else {
+			    } 
+                else {
                     char* find_term = argv[1];
                     char* replace_term = argv[2];
 
@@ -71,11 +93,11 @@ int main(int argc, char *argv[]) {
                         if (strstr(line, argv[1]) != NULL) {
                             char *result = NULL; 
 
-                            //printf("Old string: %s\n", line); 
                             result = replaceWord(line, find_term, replace_term); 
-                            //printf("New String: %s\n", result); 
+                            printf("%s", result); 
                             free(result);                          
-                            //printf("%s", line);
+                        } else {
+                            printf("%s", line);
                         }
                     }
                     fclose(fp);
