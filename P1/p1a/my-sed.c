@@ -47,16 +47,10 @@ char *replaceWord(const char *str, const char *old, const char *new) {
 
 int main(int argc, char *argv[]) {
 	
-	if (argc == 0) {
-		exit(1);
-	}
-	else if (argc == 1) {
-		exit(1);
-	}	
-    else if (argc == 2) {
+    if (argc < 2) {
 		printf("my-sed: find_term replace_term [file …]\n");
-        exit(0);
-	} else if (argc == 3 || argc > 4) {
+        exit(1);
+	} else if (argc == 3) {
         char* find_term = argv[1];
         char* replace_term = argv[2];
 

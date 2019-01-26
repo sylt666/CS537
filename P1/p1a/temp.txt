@@ -1,2 +1,5 @@
-basic file with foo in it
-on first line
+one
+two
+three
+three
+four

@@ -1,5 +1,6 @@
 #include<stdio.h>
 #include<stdlib.h>
+#include<string.h>
 
 int main(int argc, char *argv[]) {
     // argv[0] is name of program you are running
@@ -8,34 +9,34 @@ int main(int argc, char *argv[]) {
     // ~cs537-1/tests/p1a/test-my-cat.csh -v
     // ./my-cat [file]
 	
-	if (argc == 0) {
+	if (argc < 2) {
+        printf("my-uniq: [file …]\n");
 		exit(1);
 	}
-	else if (argc == 1) {
-		exit(0);
-	}	
-    else if (argc < 4 || argc > 4) {
-		printf("my-sed: find_term replace_term [file …]\n");
-        exit(0);
-	}
 	else {
-            for (int i = 3; i < argc; i++) {
+            for (int i = 1; i < argc; i++) {
 			    FILE *fp = fopen(argv[i], "r");
 			    if (fp == NULL) {
-				    printf("my-sed: cannot open file\n");
+				    printf("my-uniq: cannot open file\n");
 				    exit(1);
 			    } else {
-				    //char buffer[BUFFER_SIZE];
-                    char* find_term = argv[1];
-                    char* replace_term = argv[2];
-                    printf("looking for %s, replaceing with %s, looking in file: %s\n",find_term, replace_term, argv[3]);
+                    char* last_line = NULL;
                     char* line = NULL;
                     size_t length = 0;
                     ssize_t read = 0;
+                    int first = 0;
                     while ((read = getline(&line, &length, fp) != -1)) {
-                        if (strstr(line, argv[1]) != NULL) {
-                            printf("%s", line);
+                        //printf("last_line = %s\nline = %s\n", last_line, line);
+                        if (first == 1) {
+                            if (strcmp(last_line, line) == 0) {
+                                //printf("%s = %s\n", last_line, line);
+                            } else {
+                                printf("%s\n", last_line);
+                            }
                         }
+                        //printf("setting last_line: %s TO line: %s\n", last_line, line);
+                        last_line = strdup(line);
+                        first = 1;
                     }
                     fclose(fp);
 			    }
