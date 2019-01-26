@@ -1,0 +1,2 @@
+basic file with foo in it
+on first line
