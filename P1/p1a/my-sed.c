@@ -11,26 +11,20 @@ char *replaceWord(const char *str, const char *old, const char *new) {
     int newWlen = strlen(new); 
     int oldWlen = strlen(old); 
   
-    // Counting the number of times old word 
-    // occur in the string 
     for (i = 0; str[i] != '\0'; i++) 
     { 
         if (strstr(&str[i], old) == &str[i]) 
         { 
             cnt++; 
-  
-            // Jumping to index after the old word. 
             i += oldWlen - 1; 
         } 
     } 
   
-    // Making new string of enough length 
     result = (char *)malloc(i + cnt * (newWlen - oldWlen) + 1); 
   
     i = 0; 
     while (*str) 
     { 
-        // compare the substring with the result 
         if (strstr(str, old) == str) 
         { 
             strcpy(&result[i], new); 
@@ -40,7 +34,6 @@ char *replaceWord(const char *str, const char *old, const char *new) {
         else
             result[i++] = *str++; 
     } 
-  
     result[i] = '\0'; 
     return result; 
 }
