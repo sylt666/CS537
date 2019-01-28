@@ -1,6 +1,9 @@
 #include<stdio.h>
 #include<stdlib.h>
 #include<string.h>
+#include<unistd.h>
+#include<sys/stat.h>
+#include<fcntl.h>
 
 #define STDIN_FILE "-"
 
@@ -50,15 +53,20 @@ int main(int argc, char *argv[]) {
     // ~cs537-1/tests/p1a/test-my-cat.csh
     // ~cs537-1/tests/p1a/test-my-cat.csh -v
     // ./my-cat [file]
-	FILE *file = NULL;
+    //printf("test1");
+	FILE *fp = NULL;
+	int ret = 0;
+
 	if (argc < 2) {
-        printf("my-uniq: [file …]\n");
-		exit(1);
+        fp = stdin;
 	}
+	/*
+	//printf("argc = %d", argc);
     int i, ret = 0;
 	for(i = 1; i < argc || file; i++, file = NULL) {
-		/* decide where to read the input */
+		//printf("test2");
 		if(!file) {
+			//printf("argument: %s", argv[i]);
 			if(!strcmp(argv[i], STDIN_FILE))
 				file = stdin;
 			else
@@ -66,7 +74,7 @@ int main(int argc, char *argv[]) {
 		}
 
 		if(!file) {
-			perror("uniq");
+			printf("my-uniq: cannot open file\n");
 			ret = 1;
 			continue;
 		}
@@ -77,38 +85,53 @@ int main(int argc, char *argv[]) {
 			fclose(file);
 
 		if(err < 0) {
-			perror("uniq");
+			printf("my-uniq: cannot open file\n");
 			ret = 1;
 			continue;
 		}
 	}
-	// else {
-    //     for (int i = 1; i < argc; i++) {
-    //         FILE *fp = fopen(argv[i], "r");
-    //         if (fp == NULL) {
-    //             printf("my-uniq: cannot open file\n");
-    //             exit(1);
-    //         } else {
-    //             char* last_line = NULL;
-    //             char* line = NULL;
-    //             size_t length = 0;
-    //             ssize_t read = 0;
-    //             int first = 0;
-    //             while ((read = getline(&line, &length, fp) != -1)) {
-    //                 printf("last_line = %s\nline = %s\n", last_line, line);
-    //                 if (first == 1) {
-    //                     if (strcmp(last_line, line) || !last_line) {
-    //                         printf("!=%s", last_line);
-    //                     } else {
-    //                         printf("==%s is equal to %s\n", last_line, line);
-    //                     }
-    //                 }
-    //                 last_line = strdup(line);
-    //                 first = 1;
-    //             }
-    //             fclose(fp);
-    //         }
-    //     }
-    // }	
+	*/
+         for (int i = 1; i < argc || fp; i++, fp = NULL) {
+             //FILE *fp = fopen(argv[i], "r");
+	     if (!fp) {
+		     if (!strcmp(argv[i], STDIN_FILE)) {
+			     fp = stdin;
+		     } else {
+			     fp = fopen(argv[i], "r");
+		     }
+	     }
+             //fopen(argv[i], "r");
+		 if (fp == NULL) {
+                 printf("my-uniq: cannot open file\n");
+                 exit(1);
+             } else {
+                 char* last_line = NULL;
+                 char* line = NULL;
+                 size_t length = 0;
+                 ssize_t read = 0;
+                 int first = 0;
+		 //int loop = 0;
+                 while ((read = getline(&line, &length, fp) != -1)) {
+                    //printf("loop = %d\n", loop);
+			 //printf("last_line = %sline = %s\n", last_line, line);
+                     if (first == 1) {
+                         if (strcmp(last_line, line) == 0) {
+                             //printf("print: %s", line);
+                         } else {
+                            printf("%s", last_line);
+                         }
+                     }
+                     last_line = strdup(line);
+                     first = 1;
+		   //  loop++;
+                 }
+		 if (strcmp(line, last_line) == 0) {
+		 printf("%s", line);
+		 }
+                 fclose(fp);
+             }
+         }
+
+     	
     return ret;
 }
