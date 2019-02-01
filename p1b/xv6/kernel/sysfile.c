@@ -9,6 +9,9 @@
 #include "fcntl.h"
 #include "sysfunc.h"
 
+static uint opencounter = 0; //track # of calls to read
+uint *opencount = &opencounter; //global pointer to opencounter
+
 // Fetch the nth word-sized system call argument as a file descriptor
 // and return both the descriptor and the corresponding struct file.
 static int
@@ -257,6 +260,8 @@ create(char *path, short type, short major, short minor)
 int
 sys_open(void)
 {
+  opencounter++; //Increment counter when open is called
+  
   char *path;
   int fd, omode;
   struct file *f;

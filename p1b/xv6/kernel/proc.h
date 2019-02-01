@@ -76,6 +76,8 @@ struct proc {
   char name[16];               // Process name (debugging)
 };
 
+extern uint *opencount; // Track # of open calls for p1b
+
 // Process memory is laid out contiguously, low addresses first:
 //   text
 //   original data and bss

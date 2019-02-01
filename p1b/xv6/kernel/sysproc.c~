@@ -88,13 +88,3 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
-
-// return how many times open has been called
-// since boot
-int
-sys_getopenedcount(void)
-{
-  uint currentOpenCount = 0;
-  currentOpenCount = *opencount;
-  return currentOpenCount;
-}
