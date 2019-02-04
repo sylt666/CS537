@@ -1,0 +1,15 @@
+List of files I edited for this project
+
+user/makefile.mk
+user/user.h
+user/usys.S
+
+Created new file: user/syscallopenedtimes.c
+
+include/syscall.h
+
+kernel/proc.h
+kernel/syscall.c
+kernel/sysfile.c
+kernel/sysfunc.h
+kernel/sysproc.c

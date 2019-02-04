@@ -4,7 +4,6 @@ USER_PROGS := \
 	cat\
 	echo\
 	forktest\
-	getopenedcount\
 	grep\
 	init\
 	kill\
@@ -14,6 +13,7 @@ USER_PROGS := \
 	rm\
 	sh\
 	stressfs\
+	syscalltest\
 	tester\
 	usertests\
 	wc\
