@@ -17,6 +17,9 @@ int history_count = 0;
 char *history[INPUT_SIZE];
 char error_message[30] = "An error has occurred\n";
 
+char *temp = "test\n";
+char *temp2 = "test2\n";
+
 // Helper Methods
 void printError() {
         write(STDERR_FILENO, error_message, strlen(error_message));
@@ -172,13 +175,16 @@ void execute(int argc,char **argv,int redpos,int pipepos){
 							printError();
 							exit(0);
 						}
+                        write(STDERR_FILENO, temp, strlen(temp)); //HELP
 						argv[redpos]=NULL;
 						mypipe(pipepos,argc,argv);
 						exit(0);
 					}
 				}
-				else
+				else {
+                    write(STDERR_FILENO, temp2, strlen(temp2)); //HELP
 					mypipe(pipepos,argc,argv);
+                }
 				exit(1);
 			}
 			if(strcmp(argv[0],"wait")==0)

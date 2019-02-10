@@ -1,260 +1,158 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <assert.h>
 #include <string.h>
-#include <sys/wait.h>
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <unistd.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 #include <fcntl.h>
-#define delim " \t\r\n\a"
 
-int ifRedirect = 1;
-int ifPallel = 1;
-char *file = NULL;
-int num = 1;
-char *PATH[100];
-char *args[100];
+#define MAX_LENGTH 1024
+#define PIPE_LENGTH 1
 
-void error(){
-    char error_message[30] = "An error has occurred\n";
-    write(STDERR_FILENO, error_message, strlen(error_message)); 
-}
-int getTokens(char *args[], char *line, char *sep);
-int redirect(char *ret, char *line, char *args[]);
-int execute(char *args[], int ifRedirect, char* dir);
-int parallel(char *pal, char *line);
+int main (int argc, char *argv[]) {
+	while(1) {
+		printf("mysh> ");
+		// line stores the contents from the commnad line. 
+			
+		char line [MAX_LENGTH];
+		// "char array" , after read from stdin, 'enter' -> \n, and '\0'automatically append to the end of the input, 
+		assert(fgets(line, MAX_LENGTH, stdin) != NULL);
+		//char *ptr;
+		//if ((ptr = strchr(line, '\n')) != NULL) {
+		//	*ptr = '\0';
+		//}
+		// the code below tries to parase the c string 'line' to an array
+		int i;
+		int status = -1; // $status = -1 wait for any child return
+		int ret = -1; // return value for pipe
+		int fd[2] = {0}; // ? int array ?
+		char* token, *str; // why *token
+		char* saveptr;
+		char* argv2 [MAX_LENGTH];
+		int redirect = 0; // 0 -> no, 1 -> yes
+		int go_pipe = 0; // 0 -> no pipe, 1 -> go pipe  
+		int redirName; // index of array that points to the name of the file to be stored
+		int truncate = 0; // 1 -> when truncate
+		int append = 0; // 1 -> when append
+		int pipe_index = 0; // create a char ptr array to store the index of the '|' sign. 
+		for (i = 0, str=line; ;i++, str= NULL) {
+			token = strtok_r(str, " \n", &saveptr); // " " - the second para. indicates the content to used to parase the str, "/ " - finds "/" and " " and sepearte do t			the parase. 
+			argv2[i] = token; //argv2 stores the content of the paraseed content. 
+			if (token == NULL)
+				break;
+			// check overwrite direction
+			if (strcmp(token, ">") == 0) {
+				redirect = 1;
+				redirName = i + 1; // get index of file name  after '>'
+				truncate = 1; // set truncate bit
+			}
+			if (strcmp(token, ">>") == 0) {
+                                redirect = 1;
+                                redirName = i + 1; // get index of file name after '>>'
+                                append = 1; // set append bit
+                        }
+			// check pipe
+			if (strcmp(token, "|") == 0) {
+                                go_pipe = 1;
+                                pipe_index = i; // get pipe sign index
+                        }
 
-int getDic(char *path[], char *args[], char *dir){
-    if(args == NULL) return 1;
-    if(args[0] == NULL) return 1;
-    int isfound = 0;
-    if (path[0] == NULL) {
-        error();
-        return 1;
-    }
-    for(int i = 0; i < num; i++){
-        char temp[100];
-        strcpy(temp, path[i]);
-        int length = strlen(temp);
-        temp[length] = '/';
-        temp[length + 1] = '\0';
-        strcat(temp, args[0]);
-        if(access(temp, X_OK) == 0){
-            strcpy(dir, temp);
-            isfound = 1;
-            break;
-        }
-    }
-    if(isfound == 0){
-        error();
-        return 1;
-    }
-    if(path[0] == NULL){
-        error();
-        return 1;
-    }
-    if(dir == NULL){
-        error();
-        return 1;
-    }
-    return 0;
-}
+			
+		}
 
-int builtIn(char *path[], char *args[]){
-    if (strcmp(args[0], "exit") == 0){
-        if (args[1] != NULL) error();
-        else exit(0);
-        return -1;
-    }
-    if (strcmp(args[0], "cd") == 0){
-        if ((!args[1]) || args[2]){
-            error();
-        }
-        else 
-            if (chdir(args[1]) == -1) error();
-        return -1;
-    }
-    if (strcmp(args[0], "path") == 0){
-        if(args[1] == NULL){
-            path[0] = NULL;
-        }
-        int i = 0;
-        for (i = 0; args[i + 1] != NULL; i++){
-            path[i] = args[i + 1];
-        }
-        num = i + 1;
-        return -1;
-    }
+		// if command line is empty
+		if (argv2[0] == NULL) {
+                	continue;
+		}
+		// if command 'exit', quit mysh
+		if (strcmp(argv2[0], "exit") == 0) {
+			// if the exit follow with args, return Error!
+			if (argv2[1] != NULL){
+				fprintf(stderr, "Error!\n");
+				continue;
+			}
+			// if the command line with 'exit' is not follow by any args, exit.
+			exit(0);
+		}
+		 
+		if (strcmp(argv2[0], "cd") == 0) {
+			if (argv2[1] == NULL) {
+				if(chdir(getenv("HOME")) == -1)
+					fprintf(stderr, "Error!\n");
+			} else {
+				if(chdir(argv2[1]) == -1) {
+					fprintf(stderr, "Error!\n");
+				}
+			}
+			continue;	
+		}
+		// pwd 
+		if (strcmp(argv2[0], "pwd") == 0) {
+                        char cwd [1024];
+			assert(getcwd(cwd, 1024) != NULL);
+			printf("%s\n", cwd);
+			continue;
+                }
 
-    return 0;
-}
-int readCommand(char *args[], FILE *fp){
-    char *line = NULL;
-    size_t size = 0;
-    fflush(fp);
-    if (getline(&line, &size, fp) == -1){
-        //error(); //error
-        return 1;
-    }
-    fflush(stdin);
-    if ((strcmp(line, "\n") == 0) || (strcmp(line, "") == 0))
-        return -1;
-
-    line[strlen(line) - 1] = '\0'; //clean the '\n'
-    if (line[0] == EOF) return 1;
-
-    char *pal = strchr(line, '&');
-    if (pal){
-        parallel(pal, line);
-        return -1;
-    }
-
-    char *ret = strchr(line, '>');
-    if (ret){
-        redirect(ret,line,args);
-            //return -1;
-        return -1;
-    }
-    getTokens(args, line, delim);
-    if (args[0] == NULL)
-        return -1;
-    return 0;
-}
-
-int getTokens(char *args[], char *line, char *sep){
-    int index = 0;
-    char *save;
-    args[index] = strtok_r(line, sep, &save);
-    while(args[index] != NULL){
-        index++;
-        args[index] = strtok_r(NULL, sep, &save);
-    }
-    return 0;
-}
-
-int redirect(char *ret, char *line, char *args[]){
-    ret[0] = '\0';
-    ret = ret + 1;
-    char *retArguments[10];
-    getTokens(args, line, delim);
-    getTokens(retArguments, ret, delim);
-    file = retArguments[0];
-    if(file == NULL){
-        error();
-        return 1;
-    }
-    if(args[0] == NULL){
-        error();
-        return 1;
-    }
-    if (retArguments[1]) {
-        error();
-        return 1;
-    }
-    char dir[100];
-    getDic(PATH, args, dir);
-    execute(args, 0, dir);
-    //ifRedirect = 0;
-    return 0;
-}
-
-int parallel(char *ret, char *line){
-    char *com[100];
-    getTokens(com, line, "&");
-    char *temp;
-    //char *args[100];
-    int i = 0;
-    char dir[100];
-    while(1){
-        if (!com[i])
-            break;   
-        if((temp = strchr(com[i], '>'))){
-            redirect(temp,com[i], args);
-            i++;
-            continue;
-        }
-        getTokens(args, com[i], delim);
-        if (args[0] == NULL)
-            break;
-        getDic(PATH, args, dir);
-        execute(args, 1, dir);
-        i++;
-    }
-    return 0;
-}
-
-int execute(char *args[], int ifRedirect, char* dir){
-    int childpid;
-    int childStatus;
-    childpid = fork();
-    if(childpid == 0) {
-        if (ifRedirect == 0){
-            int fd_out = open(file, O_CREAT|O_WRONLY|O_TRUNC, S_IRWXU);
-            if (fd_out > 0){
-                dup2(fd_out, STDOUT_FILENO);
-                fflush(stdout);
-            }
-        }
-        if (args[0] == NULL)
-            return -1;
-
-        execv(dir,args);
-    }else{
-        waitpid (childpid, &childStatus, 0);
-    }
-
-    ifRedirect = 1;
-    return 0;
-}
-
-int main(int argc, char *argv[]){
-    char dir[100];
-    PATH[0] = "/bin";
-    if (argc == 2){
-        FILE *fp;
-        if (!(fp = fopen(argv[1], "r"))){
-            error();
-            exit(1);
-        }
-        while(1){
-            int read = readCommand(args, fp);
-            fflush(fp);
-            if (read == -1)
-                continue;
-            if (read == 1)
-                break;
-            if(!args[0])
-                break;
-            //fflush(fp);
-            if (builtIn(PATH,args) == -1)
-                continue;
-            if (getDic(PATH, args, dir) == 1)
-                continue;
-            //execute process
-            if(execute(args, ifRedirect, dir) == -1)
-                continue;
-        }
-        return 0;
-    }
-    if (argc < 1 || argc > 2){
-        error();
-        exit(1);
-    }
-    while(1){
-        printf("wish> ");
-        fflush(stdout);
-        int status = readCommand(args, stdin);
-        fflush(stdin);
-        if (status == -1) continue;
-        if (status == 1) break;
-
-        if (builtIn(PATH,args) == -1)
-            continue;
-        if (getDic(PATH, args, dir) == 1)
-            continue;
-
-        //execute process
-        if(execute(args, ifRedirect, dir) == -1)
-            continue;
-    }
+		// fork the child process to run the require task. 
+		int rv; 
+		rv = fork();
+		if (rv == 0) {
+			// printf("Child\n");
+			if (argv2[0] == NULL) {
+				break;
+			}
+			if (redirect) {
+				close(1); // close STDOUT
+				int fd; 
+				if (truncate) {
+					fd = open(argv2[redirName], O_CREAT|O_WRONLY|O_TRUNC, 0666);
+					argv2[redirName - 1] = NULL; // reset the NULL pointer for the argv2
+					// printf("redirName: %s, %s\n", argv2[redirName], argv2[redirName + 1]);
+				}
+				if (append) {
+					fd = open(argv2[redirName], O_CREAT|O_WRONLY|O_APPEND, 0666);
+                			argv2[redirName - 1] = NULL; // reset the NULL pointer for the argv2
+				}
+			}
+				
+			if (go_pipe) {
+				ret = pipe(fd);
+				if (ret == -1) {
+					perror("Pipe failed!\n");
+					// goto _ERR;
+				}
+				rv = fork(); // grandchild
+				if (rv == 0) {
+					// grandchild process
+					close(fd[0]); // close read pipe
+					dup2(fd[1], 1); // cp fd[1] as the STDOUT
+					argv2[pipe_index] = NULL;
+					if (execvp(argv2[0], argv2) == -1)
+						perror("Error!\n");
+				}
+				if (rv > 0) {
+					// child process
+					wait(&status); // child wait for grandchild
+					close(fd[1]); // close write pipe
+					dup2(fd[0], 0); // cp fd[0] as the STDIN
+					//argv2 = argv2[pipe_index + 1];
+					//argv2+(pipe_index+1)
+					if (execvp((argv2+(pipe_index+1))[0], argv2+(pipe_index+1)) == -1) 
+						perror("ERROR!\n");
+				}
+			}
+					
+	
+            
+			// use child process to run the require command. 
+			if(execvp(argv2[0], argv2) == -1)
+				perror("Error!\n");
+		} else if (rv > 0) {
+			// printf("parent\n");
+			wait(&status); // parent wait for child
+		}		
+	}
+	return 0;		
 }
