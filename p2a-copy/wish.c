@@ -7,14 +7,68 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <ctype.h>
+#include <errno.h>
 
 
+#define INPUT_SIZE 514
 char error_message[30] = "An error has occurred\n";
 char *newenv[50]; 
 char *envpath = "/bin";
 int noofprocesses = 0;
 char *builtin[] = {"exit","cd","path"};
+int history_count = 0;
+char *history[INPUT_SIZE];
 
+char *temp = "test\n";
+
+
+char *parse_ulong(char *src, long *to)
+{
+    char    *end;
+    long  val;
+
+    if (!src) {
+        errno = EINVAL;
+        return NULL;
+    }
+
+    end = src;
+    errno = 0;
+    val = strtoul(src, (char **)(&end), 0);
+    if (errno)
+        return NULL;
+    if (end == src) {
+        errno = EINVAL;
+        return NULL;
+    }
+
+    if (to)
+       *to = val;
+
+    return end;
+}
+
+void addHistory(char *inputline) {
+    history[history_count] = strdup(inputline);
+	history_count++;
+}
+
+void printHistory(int count) {
+    // User wants more history than we have, so just print out all our history
+    int j = history_count - count;
+    if (j < 0) {
+        j = 0;
+    }
+    if (count > history_count) {
+        for(int i = 0; i < history_count; i++){
+            printf("%d: %s", i, history[i]);
+        }
+    } else {
+        for(int i = 0 + j; i < history_count; i++){
+            printf("%d: %s", i, history[i]);
+        }
+    }    
+}
 
 void parallelrun(char *newargv[],int newargc, char * fileName){
 	int p = 0, fd= 0;
@@ -23,7 +77,7 @@ void parallelrun(char *newargv[],int newargc, char * fileName){
 		fullname[0] = '\0';
 	    strcpy(fullname, newenv[p]);
 	    strcat(fullname, "/");
-	    strcat(fullname, newargv[0]);	
+	    strcat(fullname, newargv[0]);
 		if(access(fullname,X_OK)==0){
 			int rc = fork();
 			if(rc==0){	
@@ -79,6 +133,7 @@ void forRedirection(char *currargs[],int newargc){
 
 
 void execfn(char *inputline){
+	addHistory(inputline);
 	int i = 0;
 	char *newargv[256  * sizeof(char)];
 	int newargc = 0;	
@@ -130,7 +185,21 @@ void execfn(char *inputline){
 		else	
 			write(STDERR_FILENO, error_message, strlen(error_message));
 	}
-	
+	else if (strcmp(newargv[0], "history") == 0) {
+		char *token;
+		long number = 0;
+		char *ptr = " ";
+		char *temp;
+
+		token = strstr(inputline, ptr);
+		temp = parse_ulong(token, &number);
+
+		if (number == 0) {
+			printHistory(history_count);
+		} else {
+			printHistory(number);
+		}
+	}
 	else if(strcmp(newargv[0],builtin[1])==0){
 		if(newargc!= 2){
 			write(STDERR_FILENO, error_message, strlen(error_message));
@@ -198,9 +267,9 @@ void user(){
 	while(1){
 		printf("wish> ");
 		fflush(stdout);
-		if(getline(&line, &length, stdin)!=-1)
+		if(getline(&line, &length, stdin)!=-1) {
 			execfn(line);
-		else break;
+		} else break;
 	}
 }
 
