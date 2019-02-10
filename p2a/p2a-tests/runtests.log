@@ -1,0 +1,66 @@
+starting build
+
+**********************************************************************
+
+Test build
+build project using make
+
+**********************************************************************
+Trying to clean project using make clean
+make clean
+rm -f runtests*
+rm -f *.pyc
+Trying to build project using make
+make
+echo "#!/bin/bash" > runtests
+echo "base=/u/c/s/cs537-1/tests/p2a" >> runtests
+echo "python \$base/project2a.py --test-path \$base \$@"\
+	" | tee runtests.log" >> runtests
+echo "exit \$?" >> runtests
+chmod a+x runtests
+
+
+test build PASSED
+ (build project using make)
+ file 'wish' exists after make clean, removing
+
+starting exit
+
+**********************************************************************
+
+Test exit
+run exit
+
+**********************************************************************
+/tmp/tmpXZdbiQ/p/./wish
+
+
+test exit PASSED (5 of 5)
+ (run exit)
+
+starting cd
+
+**********************************************************************
+
+Test cd
+cd with argument
+
+**********************************************************************
+/tmp/tmpXZdbiQ/p/./wish
+Failure: ./wish gave incorrect standard error.
+Expected: "An error has occurred\n"
+Got:      ""
+
+
+test cd FAILED (0 of 5)
+ (cd with argument)
+ ./wish gave incorrect standard error.
+
+ Test it yourself by running
+ wish </u/c/s/cs537-1/tests/p2a/cd/in
+ and check out the test folder
+ /u/c/s/cs537-1/tests/p2a/cd
+ to compare your output with reference outputs. 
+
+Skipped 9 tests.
+To keep testing after failing a test, use flag '-c' or '--continue'

@@ -127,14 +127,20 @@ void execute(int argc,char **argv,int redpos,int pipepos){
 	if(!isBackGround)
 		argv[--argc]=NULL;
 	if(strcmp(argv[0],"cd")==0){
-		if(argc>1){
+	  if (argc == 1) {
+	    return;
+	  }
+
+	  if(argc>1){
 			if(chdir(argv[1])==-1){
-				printError();
-				exit(1);
+			  printError();
+				exit(0);
 			}
+	     
 			getcwd(curPath,MAXN);
 		}
 		else{
+		  
 			chdir(homePath);
 			getcwd(curPath,MAXN);
 		}
