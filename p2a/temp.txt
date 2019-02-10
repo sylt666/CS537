@@ -1,0 +1,9 @@
+total 64
+drwxr-xr-x  8 gubba  staff    256 Feb  8 23:49 .
+drwxr-xr-x  9 gubba  staff    288 Feb  7 21:43 ..
+-rw-r--r--@ 1 gubba  staff     59 Feb  8 12:21 Makefile
+-rw-r--r--@ 1 gubba  staff      0 Feb  8 11:48 README.md
+-rw-r--r--  1 gubba  staff      0 Feb  9 00:25 temp.txt
+-rw-r--r--  1 gubba  staff      7 Feb  8 19:13 test.txt
+-rwxr-xr-x  1 gubba  staff  14252 Feb  8 23:26 wish
+-rw-r--r--@ 1 gubba  staff   6687 Feb  9 00:12 wish.c
