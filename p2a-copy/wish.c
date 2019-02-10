@@ -22,6 +22,49 @@ char *history[INPUT_SIZE];
 char *temp = "test\n";
 
 
+void mypipe(int pipepos,int argc,char **argv){
+	printf("pipepos = %d\n", pipepos);
+	printf("argc = %d\n", argc);
+	for(int i = 0; i < argc; i++) {
+		printf("argv = %s\n", argv[i]);
+	}
+	int fp[2];
+	if(pipe(fp)<0){
+    write(STDERR_FILENO, error_message, strlen(error_message));		
+    return;
+	}
+	int lastpos=pipepos-1;
+	while(lastpos>0 && strcmp(argv[lastpos],"|")) --lastpos;
+	int pid=fork();
+	switch(pid){
+		case -1:
+			write(STDERR_FILENO, error_message, strlen(error_message));
+			break;
+		case 0:
+			dup2(fp[1],STDOUT_FILENO);
+			close(fp[0]);
+			close(fp[1]);
+			if(lastpos!=0)	
+				mypipe(lastpos,pipepos,argv);
+			else{
+				argv[pipepos]=NULL;
+				if(execvp(argv[0],argv)==-1)
+					write(STDERR_FILENO, error_message, strlen(error_message));
+			}
+			break;
+		default:
+			argv[argc]=NULL;
+			dup2(fp[0],STDIN_FILENO);
+			close(fp[0]);
+			close(fp[1]);
+			while(wait(NULL)>0);
+			if(execvp(argv[pipepos+1],&argv[pipepos+1])==-1)
+				write(STDERR_FILENO, error_message, strlen(error_message));
+			break;
+	}	
+}
+
+
 char *parse_ulong(char *src, long *to)
 {
     char    *end;
@@ -135,10 +178,27 @@ void forRedirection(char *currargs[],int newargc){
 void execfn(char *inputline){
 	addHistory(inputline);
 	int i = 0;
+	int pipe = 0;
+	int pipepos = 0;
 	char *newargv[256  * sizeof(char)];
-	int newargc = 0;	
+	int newargc = 0;
+
 	while(i<strlen(inputline) && inputline[i]!='\n'){
 		if(inputline[i]!= ' ' && inputline[i]!='\t' ){
+			////// CONTRUCTION ///////
+			if(inputline[i] == '|'){
+				char *temparg = malloc(256  * sizeof(char));	
+				temparg[0] = '|';
+				temparg[1] = '\0';
+				newargv[newargc] = temparg;
+				newargc++;
+				i++;
+				pipe = 1;
+				pipepos = 2;
+				continue;
+			}
+			//////////////////////////
+
 			if(inputline[i]=='&'){
 				char *temparg = malloc(256  * sizeof(char));	
 				temparg[0] = '&';
@@ -162,7 +222,7 @@ void execfn(char *inputline){
 			int t = 0;	
 			char *temparg = malloc(256  * sizeof(char));
 			while(i<strlen(inputline) && inputline[i]!=' ' && inputline[i] != '\t' && inputline[i]!='\n' && inputline[i]!='\r'){
-				if(inputline[i]!= '&' && inputline[i]!='>'){					
+				if(inputline[i]!= '&' && inputline[i]!='>' && inputline[i] != '|'){	// CHANGED HERE TOO ME SMRT				
 				temparg[t] = inputline[i];
 				i++;
 				t++;
@@ -177,6 +237,8 @@ void execfn(char *inputline){
 			i++;
 		}
 	}
+
+
 	
 	if(newargc==0) return;
 	if(strcmp(newargv[0],builtin[0])==0){ 
@@ -191,13 +253,13 @@ void execfn(char *inputline){
 		char *ptr = " ";
 		char *temp;
 
-		token = strstr(inputline, ptr);
-		temp = parse_ulong(token, &number);
+		token = strstr(inputline, ptr); // Get pointer to the '->': "history ->2"
+		temp = parse_ulong(token, &number); // Get only the first number they entered, so "history 20 10 50" will only get 20
 
 		if (number == 0) {
-			printHistory(history_count);
+			printHistory(history_count); // print entire history
 		} else {
-			printHistory(number);
+			printHistory(number); // print most recent n history
 		}
 	}
 	else if(strcmp(newargv[0],builtin[1])==0){
@@ -224,6 +286,24 @@ void execfn(char *inputline){
 			return;
 		}
 
+		////////////////////
+		if (pipe == 1) {
+			// printf("pipepos = %d\n", pipepos);
+			// printf("newargc = %d\n", newargc);
+			// for(int i = 0; i < newargc; i++) {
+			// 	printf("newargv = %s\n", newargv[i]);
+			// }
+			
+			
+			//exit(0);
+			mypipe(pipepos, newargc, newargv);	
+		}
+		
+
+
+
+		/////////////////////
+		
 		int i = 0;
 		int numCommand = 0;
 		while(i<newargc){
