@@ -56,11 +56,6 @@ void printHistory(int count) {
 }
 
 void mypipe(int pipepos,int argc,char **argv){
-	printf("pipepos = %d\n", pipepos);
-	printf("newargc = %d\n", argc);
-	for(int i = 0; i < argc; i++) {
-		printf("newargv = %s\n", argv[i]);
-	}
 	int fp[2];
 	if(pipe(fp)<0){
     printError();		
@@ -187,7 +182,8 @@ void execute(int argc,char **argv,int redpos,int pipepos){
 					}
 				}
 				else {
-                    write(STDERR_FILENO, temp2, strlen(temp2)); //HELP
+					printf("redpos = %d\n", redpos);
+					write(STDERR_FILENO, temp2, strlen(temp2)); //HELP
 					mypipe(pipepos,argc,argv);
                 }
 				exit(1);

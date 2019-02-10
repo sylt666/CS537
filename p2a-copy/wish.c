@@ -21,13 +21,7 @@ char *history[INPUT_SIZE];
 
 char *temp = "test\n";
 
-
 void mypipe(int pipepos,int argc,char **argv){
-	printf("pipepos = %d\n", pipepos);
-	printf("argc = %d\n", argc);
-	for(int i = 0; i < argc; i++) {
-		printf("argv = %s\n", argv[i]);
-	}
 	int fp[2];
 	if(pipe(fp)<0){
     write(STDERR_FILENO, error_message, strlen(error_message));		
@@ -185,7 +179,6 @@ void execfn(char *inputline){
 
 	while(i<strlen(inputline) && inputline[i]!='\n'){
 		if(inputline[i]!= ' ' && inputline[i]!='\t' ){
-			////// CONTRUCTION ///////
 			if(inputline[i] == '|'){
 				char *temparg = malloc(256  * sizeof(char));	
 				temparg[0] = '|';
@@ -197,7 +190,6 @@ void execfn(char *inputline){
 				pipepos = 2;
 				continue;
 			}
-			//////////////////////////
 
 			if(inputline[i]=='&'){
 				char *temparg = malloc(256  * sizeof(char));	
@@ -222,7 +214,7 @@ void execfn(char *inputline){
 			int t = 0;	
 			char *temparg = malloc(256  * sizeof(char));
 			while(i<strlen(inputline) && inputline[i]!=' ' && inputline[i] != '\t' && inputline[i]!='\n' && inputline[i]!='\r'){
-				if(inputline[i]!= '&' && inputline[i]!='>' && inputline[i] != '|'){	// CHANGED HERE TOO ME SMRT				
+				if(inputline[i]!= '&' && inputline[i]!='>' && inputline[i] != '|'){			
 				temparg[t] = inputline[i];
 				i++;
 				t++;
@@ -285,25 +277,27 @@ void execfn(char *inputline){
 			write(STDERR_FILENO, error_message, strlen(error_message));
 			return;
 		}
-
-		////////////////////
 		if (pipe == 1) {
-			// printf("pipepos = %d\n", pipepos);
-			// printf("newargc = %d\n", newargc);
-			// for(int i = 0; i < newargc; i++) {
-			// 	printf("newargv = %s\n", newargv[i]);
-			// }
-			
-			
-			//exit(0);
-			mypipe(pipepos, newargc, newargv);	
-		}
-		
-
-
-
-		/////////////////////
-		
+			int isBackGround=strcmp(newargv[newargc-1],"&"),stat;
+			int pid=fork();
+			if (pid == -1) {
+				write(STDERR_FILENO, error_message, strlen(error_message));
+				exit(1);
+			} else if (pid == 0) {
+				mypipe(pipepos, newargc, newargv);	// PIPE SHIT HERE
+				waitpid(pid,NULL,0);
+				exit(1);
+			} else {
+				if(strcmp(newargv[0],"wait")==0){
+				if(newargc!=1){
+					write(STDERR_FILENO, error_message, strlen(error_message));
+				}
+				while(wait(&stat)>0);
+			}
+			else if(isBackGround)
+				waitpid(pid,NULL,0);
+			}
+		} else {
 		int i = 0;
 		int numCommand = 0;
 		while(i<newargc){
@@ -321,8 +315,8 @@ void execfn(char *inputline){
 		}
 		while(numCommand-- >0)
 			wait(NULL);	
+		}
 	}
-
 }
 
 
