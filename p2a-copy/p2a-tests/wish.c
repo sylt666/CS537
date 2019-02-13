@@ -72,7 +72,7 @@ char *parse_ulong(char *src, long *to)
     errno = 0;
     val = strtoul(src, (char **)(&end), 0);
     if (errno)
-        return NULL;
+      return NULL;
     if (end == src) {
         errno = EINVAL;
         return NULL;
@@ -95,13 +95,14 @@ void printHistory(int count) {
     if (j < 0) {
         j = 0;
     }
+    //    printf("History count is: %d", count);
     if (count > history_count) {
         for(int i = 0; i < history_count; i++){
-            printf("%d: %s", i, history[i]);
+            printf("%s", history[i]);
         }
     } else {
         for(int i = 0 + j; i < history_count; i++){
-            printf("%d: %s", i, history[i]);
+            printf("%s", history[i]);
         }
     }    
 }
@@ -239,19 +240,33 @@ void execfn(char *inputline){
 			write(STDERR_FILENO, error_message, strlen(error_message));
 	}
 	else if (strcmp(newargv[0], "history") == 0) {
-		char *token;
+	        char *token;
 		long number = 0;
 		char *ptr = " ";
-		char *temp;
-
+	    	char *temp;
+		int num = 0;
+		//		printf("%s", temp);
 		token = strstr(inputline, ptr); // Get pointer to the '->': "history ->2"
-		temp = parse_ulong(token, &number); // Get only the first number they entered, so "history 20 10 50" will only get 20
-
+		if (token == NULL) {
+		  number = 0;
+		} else {
+		  //printf("%s", token);
+		  temp = parse_ulong(token, &number); // Get only the first number they entered, so "history 20 10 50" will only get 20
+		}
+		
+		//if (temp != NULL) {
+		  num = atoi(temp);
+		if (number == num) {
+		  
 		if (number == 0) {
 			printHistory(history_count); // print entire history
 		} else {
 			printHistory(number); // print most recent n history
 		}
+		} else {
+		  write(STDERR_FILENO,error_message, strlen(error_message));
+		}
+		//}
 	}
 	else if(strcmp(newargv[0],builtin[1])==0){
 		if(newargc!= 2){

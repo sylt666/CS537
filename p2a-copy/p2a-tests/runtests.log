@@ -1,0 +1,92 @@
+starting build
+
+**********************************************************************
+
+Test build
+build project using make
+
+**********************************************************************
+Trying to clean project using make clean
+make clean
+rm -f runtests*
+rm -f *.pyc
+Trying to build project using make
+make
+echo "#!/bin/bash" > runtests
+echo "base=/u/c/s/cs537-1/tests/p2a" >> runtests
+echo "python \$base/project2a.py --test-path \$base \$@"\
+	" | tee runtests.log" >> runtests
+echo "exit \$?" >> runtests
+chmod a+x runtests
+
+
+test build PASSED (5 of 5)
+ (build project using make)
+ file 'wish' exists after make clean, removing
+
+starting exit
+
+**********************************************************************
+
+Test exit
+run exit
+
+**********************************************************************
+/tmp/tmp9pnKTi/p/./wish
+
+
+test exit PASSED (5 of 5)
+ (run exit)
+
+starting cd
+
+**********************************************************************
+
+Test cd
+cd with argument, and cd without argument
+
+**********************************************************************
+/tmp/tmp9pnKTi/p/./wish
+
+
+test cd PASSED (5 of 5)
+ (cd with argument, and cd without argument)
+
+starting badcd
+
+**********************************************************************
+
+Test badcd
+cd to a bad directory
+
+**********************************************************************
+/tmp/tmp9pnKTi/p/./wish
+
+
+test badcd PASSED (5 of 5)
+ (cd to a bad directory)
+
+starting history
+
+**********************************************************************
+
+Test history
+test history without argument
+
+**********************************************************************
+/tmp/tmp9pnKTi/p/./wish
+Failure: ./wish returned incorrect status code. Expected 0 got -11
+
+
+test history FAILED (0 of 5)
+ (test history without argument)
+ ./wish returned incorrect status code. Expected 0 got -11
+
+ Test it yourself by running
+ wish </u/c/s/cs537-1/tests/p2a/history/in
+ and check out the test folder
+ /u/c/s/cs537-1/tests/p2a/history
+ to compare your output with reference outputs. 
+
+Skipped 11 tests.
+To keep testing after failing a test, use flag '-c' or '--continue'
