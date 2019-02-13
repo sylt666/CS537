@@ -240,33 +240,28 @@ void execfn(char *inputline){
 			write(STDERR_FILENO, error_message, strlen(error_message));
 	}
 	else if (strcmp(newargv[0], "history") == 0) {
-	        char *token;
+	    char *token;
 		long number = 0;
 		char *ptr = " ";
-	    	char *temp;
-		int num = 0;
-		//		printf("%s", temp);
+	    char *temp;
+		
 		token = strstr(inputline, ptr); // Get pointer to the '->': "history ->2"
-		if (token == NULL) {
+		
+		if (newargc == 1) {
 		  number = 0;
 		} else {
-		  //printf("%s", token);
 		  temp = parse_ulong(token, &number); // Get only the first number they entered, so "history 20 10 50" will only get 20
 		}
 		
-		//if (temp != NULL) {
-		  num = atoi(temp);
-		if (number == num) {
-		  
-		if (number == 0) {
-			printHistory(history_count); // print entire history
-		} else {
-			printHistory(number); // print most recent n history
-		}
+		if (newargc < 3 && newargc > 0) {
+			if (number == 0) {
+				printHistory(history_count); // print entire history
+			} else {
+				printHistory(number); // print most recent n history
+			}
 		} else {
 		  write(STDERR_FILENO,error_message, strlen(error_message));
 		}
-		//}
 	}
 	else if(strcmp(newargv[0],builtin[1])==0){
 		if(newargc!= 2){
