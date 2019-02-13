@@ -32,7 +32,7 @@ Test exit
 run exit
 
 **********************************************************************
-/tmp/tmp9pnKTi/p/./wish
+/tmp/tmputVe2S/p/./wish
 
 
 test exit PASSED (5 of 5)
@@ -46,7 +46,7 @@ Test cd
 cd with argument, and cd without argument
 
 **********************************************************************
-/tmp/tmp9pnKTi/p/./wish
+/tmp/tmputVe2S/p/./wish
 
 
 test cd PASSED (5 of 5)
@@ -60,7 +60,7 @@ Test badcd
 cd to a bad directory
 
 **********************************************************************
-/tmp/tmp9pnKTi/p/./wish
+/tmp/tmputVe2S/p/./wish
 
 
 test badcd PASSED (5 of 5)
@@ -74,19 +74,217 @@ Test history
 test history without argument
 
 **********************************************************************
-/tmp/tmp9pnKTi/p/./wish
-Failure: ./wish returned incorrect status code. Expected 0 got -11
+/tmp/tmputVe2S/p/./wish
 
 
-test history FAILED (0 of 5)
+test history PASSED (5 of 5)
  (test history without argument)
- ./wish returned incorrect status code. Expected 0 got -11
 
- Test it yourself by running
- wish </u/c/s/cs537-1/tests/p2a/history/in
- and check out the test folder
- /u/c/s/cs537-1/tests/p2a/history
- to compare your output with reference outputs. 
+starting historyarg
 
-Skipped 11 tests.
-To keep testing after failing a test, use flag '-c' or '--continue'
+**********************************************************************
+
+Test historyarg
+test history with argument
+
+**********************************************************************
+/tmp/tmputVe2S/p/./wish
+
+
+test historyarg PASSED (5 of 5)
+ (test history with argument)
+
+starting exec
+
+**********************************************************************
+
+Test exec
+path should be /bin
+
+**********************************************************************
+/tmp/tmputVe2S/p/./wish
+
+
+test exec PASSED (5 of 5)
+ (path should be /bin)
+
+starting badexec
+
+**********************************************************************
+
+Test badexec
+run programs that do not exist in /bin
+
+**********************************************************************
+/tmp/tmputVe2S/p/./wish
+
+
+test badexec PASSED (10 of 10)
+ (run programs that do not exist in /bin)
+
+starting path
+
+**********************************************************************
+
+Test path
+run path and a program that exists in a given path
+
+**********************************************************************
+/tmp/tmputVe2S/p/./wish
+
+
+test path PASSED (5 of 5)
+ (run path and a program that exists in a given path)
+
+starting path2
+
+**********************************************************************
+
+Test path2
+run path with a long pathname and many different paths
+
+**********************************************************************
+/tmp/tmputVe2S/p/./wish
+
+
+test path2 PASSED (5 of 5)
+ (run path with a long pathname and many different paths)
+
+starting pip
+
+**********************************************************************
+
+Test pip
+simple piping
+
+**********************************************************************
+/tmp/tmputVe2S/p/./wish
+
+
+test pip PASSED (10 of 10)
+ (simple piping)
+
+starting line
+
+**********************************************************************
+
+Test line
+line with maximum allowed length
+
+**********************************************************************
+/tmp/tmputVe2S/p/./wish
+
+
+test line PASSED (5 of 5)
+ (line with maximum allowed length)
+
+starting batch
+
+**********************************************************************
+
+Test batch
+test batch mode
+
+**********************************************************************
+/tmp/tmputVe2S/p/./wish /u/c/s/cs537-1/tests/p2a/batch/input
+
+
+test batch PASSED (5 of 5)
+ (test batch mode)
+
+starting badarg
+
+**********************************************************************
+
+Test badarg
+extra argument to wish
+
+**********************************************************************
+/tmp/tmputVe2S/p/./wish /extra
+
+
+test badarg PASSED (5 of 5)
+ (extra argument to wish)
+
+starting whitespace
+
+**********************************************************************
+
+Test whitespace
+leading and trailing whitespace, full whitespaces or empty string
+
+**********************************************************************
+/tmp/tmputVe2S/p/./wish
+
+
+test whitespace PASSED (5 of 5)
+ (leading and trailing whitespace, full whitespaces or empty string)
+
+starting rdr
+
+**********************************************************************
+
+Test rdr
+simple redirection with no standard error
+
+**********************************************************************
+/tmp/tmputVe2S/p/./wish
+
+
+test rdr PASSED (10 of 10)
+ (simple redirection with no standard error)
+
+**********************************************************************
+Summary:
+test build PASSED (5 of 5)
+ (build project using make)
+ file 'wish' exists after make clean, removing
+
+test exit PASSED (5 of 5)
+ (run exit)
+
+test cd PASSED (5 of 5)
+ (cd with argument, and cd without argument)
+
+test badcd PASSED (5 of 5)
+ (cd to a bad directory)
+
+test history PASSED (5 of 5)
+ (test history without argument)
+
+test historyarg PASSED (5 of 5)
+ (test history with argument)
+
+test exec PASSED (5 of 5)
+ (path should be /bin)
+
+test badexec PASSED (10 of 10)
+ (run programs that do not exist in /bin)
+
+test path PASSED (5 of 5)
+ (run path and a program that exists in a given path)
+
+test path2 PASSED (5 of 5)
+ (run path with a long pathname and many different paths)
+
+test pip PASSED (10 of 10)
+ (simple piping)
+
+test line PASSED (5 of 5)
+ (line with maximum allowed length)
+
+test batch PASSED (5 of 5)
+ (test batch mode)
+
+test badarg PASSED (5 of 5)
+ (extra argument to wish)
+
+test whitespace PASSED (5 of 5)
+ (leading and trailing whitespace, full whitespaces or empty string)
+
+test rdr PASSED (10 of 10)
+ (simple redirection with no standard error)
+
+Passed 16 of 16 tests.
+Overall 16 of 16
+Points 95 of 95

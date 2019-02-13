@@ -253,7 +253,7 @@ void execfn(char *inputline){
 		  temp = parse_ulong(token, &number); // Get only the first number they entered, so "history 20 10 50" will only get 20
 		}
 		
-		if (newargc < 3 && newargc > 0) {
+		if (temp == NULL || (newargc < 3 && newargc > 0)) {
 			if (number == 0) {
 				printHistory(history_count); // print entire history
 			} else {
