@@ -19,7 +19,6 @@ char *builtin[] = {"exit","cd","path"};
 int history_count = 0;
 char *history[INPUT_SIZE];
 
-char *temp = "test\n";
 
 void mypipe(int pipepos,int argc,char **argv){
 	int fp[2];

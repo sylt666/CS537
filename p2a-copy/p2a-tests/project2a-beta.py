@@ -157,9 +157,9 @@ class Batch(ShellTest):
   name = 'batch'
   description = 'test batch mode'
   timeout = 10
-  status = 0
+  status = 1
   def run(self):
-    super(Batch, self).run(command = ['./wish', self.test_path + '/' + self.name + '/input'])
+    super(BadArg, self).run(command = ['./wish', '/extra'])
   point_value = 5
   
 class BadArg(ShellTest):
@@ -259,8 +259,8 @@ all_tests = [
 
   # # Formatting
    Line,
-   Batch,
    BadArg,
+   Batch,
    WhiteSpace,
 
   # # Redirection
