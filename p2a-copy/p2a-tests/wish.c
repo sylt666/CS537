@@ -58,9 +58,8 @@ void mypipe(int pipepos,int argc,char **argv){
 }
 
 
-char *parse_ulong(char *src, long *to)
-{
-    char    *end;
+char *parse_ulong(char *src, long *to) {
+    char  *end;
     long  val;
 
     if (!src) {
@@ -95,7 +94,6 @@ void printHistory(int count) {
     if (j < 0) {
         j = 0;
     }
-    //    printf("History count is: %d", count);
     if (count > history_count) {
         for(int i = 0; i < history_count; i++){
             printf("%s", history[i]);
@@ -229,9 +227,6 @@ void execfn(char *inputline){
 			i++;
 		}
 	}
-
-
-	
 	if(newargc==0) return;
 	if(strcmp(newargv[0],builtin[0])==0){ 
 		if(newargc==1)
@@ -243,24 +238,31 @@ void execfn(char *inputline){
 	    char *token;
 		long number = 0;
 		char *ptr = " ";
-	    char *temp;
+	    char *temp = NULL;
 		
 		token = strstr(inputline, ptr); // Get pointer to the '->': "history ->2"
 		
+		// If they just type 'history' print entire history
 		if (newargc == 1) {
 		  number = 0;
-		} else {
+		} else { // Otherwise read the number they gave me
 		  temp = parse_ulong(token, &number); // Get only the first number they entered, so "history 20 10 50" will only get 20
 		}
-		
-		if (temp == NULL || (newargc < 3 && newargc > 0)) {
-			if (number == 0) {
-				printHistory(history_count); // print entire history
+
+		// Make sure 'history string' doesent work because need integer
+		if (atoi(newargv[1]) != 0 || newargc == 1) {
+			// Make sure they only gave 'history' or 'history #' if anymore numbers it will print error
+			if (temp == NULL || (newargc < 3 && newargc > 0)) {
+				if (number == 0) {
+					printHistory(history_count); // print entire history
+				} else {
+					printHistory(number); // print most recent n history
+				}
 			} else {
-				printHistory(number); // print most recent n history
+		  		write(STDERR_FILENO,error_message, strlen(error_message));
 			}
 		} else {
-		  write(STDERR_FILENO,error_message, strlen(error_message));
+		  	write(STDERR_FILENO,error_message, strlen(error_message));
 		}
 	}
 	else if(strcmp(newargv[0],builtin[1])==0){
