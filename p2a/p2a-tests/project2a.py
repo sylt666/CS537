@@ -15,6 +15,7 @@ def readall(filename):
 
 class ShellBuildTest(BuildTest):
   targets = ['wish']
+  point_value = 5
 
   def run(self):
     self.clean(['wish', '*.o'])
@@ -64,7 +65,7 @@ class Exit(ShellTest):
 
 class CD(ShellTest):
   name = 'cd'
-  description = 'cd with argument'
+  description = 'cd with argument, and cd without argument'
   timeout = 10
   status = 0
   point_value = 5
@@ -78,7 +79,21 @@ class CD(ShellTest):
                         shell_prompt + 
                         shell_prompt + out1 +
                         shell_prompt)
+class History(ShellTest):
+  name = 'history'
+  description = 'test history without argument'
+  timeout = 10
+  status = 0
+  point_value = 5
 
+  
+class HistoryArg(ShellTest):
+  name = 'historyarg'
+  description = 'test history with argument'
+  timeout = 10
+  status = 0
+  point_value = 5
+  
 class BadCD(ShellTest):
   name = 'badcd'
   description = 'cd to a bad directory'
@@ -114,19 +129,12 @@ class Path2(ShellTest):
   status = 0
   point_value = 5
 
-class Stress(ShellTest):
-  name = 'stress'
-  description = 'stress testing the shell with large number of commands'
+class Pip(ShellTest):
+  name = 'pip'
+  description = 'simple piping'
   timeout = 10
   status = 0
-  point_value = 5
-  def run(self):
-    generate_path = self.test_path + "/" + self.name + "/gen"
-
-    status = self.run_util([generate_path, "-s", str(1), "-n", str(10000)])
-    if status != 0:
-      raise Exception("generate failed with error " + str(status))
-    super(Stress, self).run()
+  point_value = 10
 
 
 ######################### Formatting ###########################
@@ -145,6 +153,15 @@ class BadLine(ShellTest):
   status = 0
   point_value = 5
 
+class Batch(ShellTest):
+  name = 'batch'
+  description = 'test batch mode'
+  timeout = 10
+  status = 0
+  def run(self):
+    super(Batch, self).run(command = ['./wish', self.test_path + '/' + self.name + '/input'])
+  point_value = 5
+  
 class BadArg(ShellTest):
   name = 'badarg'
   description = 'extra argument to wish'
@@ -232,23 +249,22 @@ all_tests = [
    Exit,
    CD,
    BadCD,
+   History,
+   HistoryArg,
    Exec,
    BadExec,
    Path,
    Path2,
-  # Stress,
+   Pip,
 
   # # Formatting
    Line,
-   #BadLine,
+   Batch,
    BadArg,
    WhiteSpace,
 
   # # Redirection
    Rdr,
-  # Rdr2,
-  # BadRdr,
-  # BadRdr2,
   ]
 
 build_test = ShellBuildTest

@@ -1,2 +1,0 @@
-cat /u/c/s/cs537-1/tests/p2a/pip/iloveos | grep -ni os
-exit

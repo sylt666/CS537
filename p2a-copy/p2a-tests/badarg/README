@@ -1,5 +1,0 @@
-This test has no stdout because it's called as
-./wish /extra
-
-"in" is a valid inpu file, but /extra is an 
-extra argument.
