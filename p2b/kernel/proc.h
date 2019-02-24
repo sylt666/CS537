@@ -9,7 +9,7 @@
 #define SEG_UDATA 5  // user data+stack
 #define SEG_TSS   6  // this process's task state
 #define NSEGS     7
-
+#include "param.h"
 // Per-CPU state
 struct cpu {
   uchar id;                    // Local APIC ID; index into cpus[] below
@@ -59,8 +59,6 @@ struct context {
 
 
 
-
-
 // Per-process state
 struct proc {
   uint sz;                     // Size of process memory (bytes)
@@ -76,6 +74,10 @@ struct proc {
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
+  int priority;                // Priority of this process
+  int ticks[4];                // Ticks at each level
+  int accumulatedTicks[4];      // All ticks
+  uint lastTick;               // When last run
 };
 
 // Process memory is laid out contiguously, low addresses first:
