@@ -88,3 +88,13 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+
+int
+sys_getpinfo(void)
+{
+  struct pstat *processStats;
+
+  if(argptr(0, (void*)&processStats, sizeof(struct pstat)) < 0)
+    return -1;
+  return getpinfo(processStats);
+}
