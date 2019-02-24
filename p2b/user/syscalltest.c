@@ -9,7 +9,7 @@ main(int argc, char *argv[])
   int i;
 
   if(argc < 2){
-    //ls(".");
+    //    ls(".");
     exit();
   }
   for(i=1; i<argc; i++)
