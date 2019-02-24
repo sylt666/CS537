@@ -2,6 +2,7 @@
 # user programs
 USER_PROGS := \
 	cat\
+	check\
 	echo\
 	forktest\
 	grep\
@@ -15,6 +16,7 @@ USER_PROGS := \
 	stressfs\
 	syscalltest\
 	tester\
+	test0\
 	usertests\
 	wc\
 	zombie
