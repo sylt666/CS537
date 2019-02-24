@@ -19,7 +19,6 @@ extern struct {
   struct proc proc[NPROC];
   struct proc* queues [4][NPROC]; // Rule 1
 } ptable;
-
 void
 tvinit(void)
 {
@@ -56,6 +55,7 @@ trap(struct trapframe *tf)
     if(cpu->id == 0){
       acquire(&tickslock);
       ticks++;
+      //cprintf("Incrementing tick prio [ticks:%d] [pid:%d] [name:%s]\n", proc->ticks[proc->priority], proc->pid, proc->name);
       wakeup(&ticks);
       release(&tickslock);
     }
@@ -107,9 +107,11 @@ trap(struct trapframe *tf)
   // Force process to give up CPU on clock tick.
   // If interrupts were on while locks held, would need to check nlock.
   if(proc && proc->state == RUNNING && tf->trapno == T_IRQ0+IRQ_TIMER) {
+    //cprintf("Yielding from [pid:%d] [name:%s]\n", proc->pid, proc->name);
+//    cprintf("[PID:%d],Tick[%d]:[%d]\n", proc->pid, proc->priority, proc->ticks[proc->priority]);
     proc->ticks[proc->priority] = proc->ticks[proc->priority] + 1;  // Rule 4
     proc->accumulatedTicks[proc->priority] = proc->accumulatedTicks[proc->priority] + 1;  // Rule 4
-
+//    cprintf("[PID:%d],Tick[%d]:[%d]\n", proc->pid, proc->priority, proc->ticks[proc->priority]);
     starvTicks++;
     acquire(&ptable.lock);
     struct proc *p = NULL,**q = NULL;
@@ -143,7 +145,6 @@ trap(struct trapframe *tf)
       }
     }
     release(&ptable.lock);
-    
     yield();
   }
 

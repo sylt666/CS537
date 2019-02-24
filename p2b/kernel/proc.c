@@ -11,9 +11,8 @@
 struct {
   struct spinlock lock;
   struct proc proc[NPROC];
-  struct proc* queues [4][NPROC];
+  struct proc* queues [4][NPROC]; // Rule 1
 } ptable;
-
 extern uint starvTicks;
 static struct proc *initproc;
 
@@ -102,6 +101,14 @@ userinit(void)
   p->cwd = namei("/");
 
   p->state = RUNNABLE;
+  p->priority = 0; // Rule 6
+  struct proc **q;
+  for(q = &(ptable.queues[0][0]); q < &ptable.queues[0][NPROC]; q++) {
+    if (*q == NULL) {
+      *q = p;
+      break;
+    }
+  }
   release(&ptable.lock);
 }
 
@@ -145,6 +152,15 @@ fork(void)
     np->state = UNUSED;
     return -1;
   }
+  np->priority = 0; // Rule 6
+  struct proc **q;
+  for(q = &(ptable.queues[0][0]); q < &ptable.queues[0][NPROC]; q++) {
+    if (*q == NULL) {
+      *q = np;
+      break;
+    }
+  }
+
   np->sz = proc->sz;
   np->parent = proc;
   *np->tf = *proc->tf;
@@ -160,6 +176,7 @@ fork(void)
   pid = np->pid;
   np->state = RUNNABLE;
   safestrcpy(np->name, proc->name, sizeof(proc->name));
+  //cprintf("Adding to priority 0 [pid:%d] [name:%s]\n", np->pid, np->name);
   return pid;
 }
 
@@ -261,7 +278,14 @@ scheduler(void)
 {
   struct proc *p, **q, **r, **lastRR = NULL;
   int cntr = 0;
-
+  //static char *states[] = {
+  //[UNUSED]    "unused",
+  //[EMBRYO]    "embryo",
+  //[SLEEPING]  "sleep ",
+  //[RUNNABLE]  "runble",
+  //[RUNNING]   "run   ",
+  //[ZOMBIE]    "zombie"
+  //};
   for(;;){
     // Enable interrupts on this processor.
     sti();
@@ -457,7 +481,6 @@ scheduler(void)
   }
 }
 
-
 // Enter scheduler.  Must hold only ptable.lock
 // and have changed proc->state.
 void
@@ -524,6 +547,7 @@ sleep(void *chan, struct spinlock *lk)
   // Go to sleep.
   proc->chan = chan;
   proc->state = SLEEPING;
+  //cprintf("Going to sleep [pid:%d] [name:%s]\n",proc->pid, proc->name);
   sched();
 
   // Tidy up.
@@ -642,4 +666,3 @@ getpinfo(struct pstat *arg)
   release(&ptable.lock);
   return 0;
 }
-
