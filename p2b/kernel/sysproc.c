@@ -93,9 +93,9 @@ sys_uptime(void)
 int
 sys_getpinfo(void)
 {
-  struct pstat *processStats;
+  struct pstat *p;
 
-  if(argptr(0, (void*)&processStats, sizeof(struct pstat)) < 0)
+  if(argptr(0, (void *)&p, sizeof(struct pstat)) < 0)
     return -1;
-  return getpinfo(processStats);
+  return getpinfo(p);
 }

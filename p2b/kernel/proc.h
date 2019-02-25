@@ -58,7 +58,6 @@ struct context {
 };
 
 
-
 // Per-process state
 struct proc {
   uint sz;                     // Size of process memory (bytes)
@@ -71,13 +70,12 @@ struct proc {
   struct context *context;     // swtch() here to run process
   void *chan;                  // If non-zero, sleeping on chan
   int killed;                  // If non-zero, have been killed
+  int priority;                // Priority of each process
+  int ticks[4];                // Ticks at each priority level
+  int wait_ticks[4];           // Wait Ticks at each priority level
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
-  int priority;                // Priority of this process
-  int ticks[4];                // Ticks at each level
-  int accumulatedTicks[4];      // All ticks
-  uint lastTick;               // When last run
 };
 
 // Process memory is laid out contiguously, low addresses first:
