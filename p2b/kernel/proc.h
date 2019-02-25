@@ -9,7 +9,7 @@
 #define SEG_UDATA 5  // user data+stack
 #define SEG_TSS   6  // this process's task state
 #define NSEGS     7
-#include "param.h"
+
 // Per-CPU state
 struct cpu {
   uchar id;                    // Local APIC ID; index into cpus[] below
@@ -57,6 +57,7 @@ struct context {
   uint eip;
 };
 
+enum procstate { UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
 // Per-process state
 struct proc {
@@ -70,13 +71,16 @@ struct proc {
   struct context *context;     // swtch() here to run process
   void *chan;                  // If non-zero, sleeping on chan
   int killed;                  // If non-zero, have been killed
-  int priority;                // Priority of each process
-  int ticks[4];                // Ticks at each priority level
-  int wait_ticks[4];           // Wait Ticks at each priority level
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
-  char name[16];               // Process name (debugging)
+  char name[16];// Process name (debugging)
+  int clicks;
+  int priority;
+  int ticks[4];
+  int wait_ticks[4];
+  int inuse;
 };
+
 
 // Process memory is laid out contiguously, low addresses first:
 //   text
