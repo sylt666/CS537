@@ -90,12 +90,12 @@ sys_uptime(void)
   return xticks;
 }
 
-int 
+int
 sys_getpinfo(void)
 {
-  struct pstat* cur;
-  if(argptr(0, (void*)(&cur),sizeof(cur)) < 0)
+  struct pstat *p;
+
+  if(argptr(0, (void *)&p, sizeof(struct pstat)) < 0)
     return -1;
-  helper(cur);
-  return 0;
+  return getpinfo(p);
 }
