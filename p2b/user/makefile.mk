@@ -17,6 +17,7 @@ USER_PROGS := \
 	syscalltest\
 	tester\
 	test0\
+	test1\
 	usertests\
 	wc\
 	zombie
