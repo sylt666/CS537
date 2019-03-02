@@ -13,7 +13,6 @@ USER_PROGS := \
 	rm\
 	sh\
 	stressfs\
-	syscalltest\
 	tester\
 	usertests\
 	wc\
