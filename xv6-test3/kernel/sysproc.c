@@ -89,19 +89,26 @@ sys_uptime(void)
   return xticks;
 }
 
-// UPDATE: should not be here actually, somewhere call sysvm.c
 int
-sys_shmem_access(void)
+sys_shmgetat(void)
 {
-  int page_number;
-  if (argint(0, &page_number) < 0) return -1;
-  return (int)shmem_access(page_number);
+  int key, num_pages;
+  void *addr;
+  if(argint(0, (void *)&key) < 0)
+    return -1;
+  if(argint(1, (void *)&num_pages) < 0)
+    return -1;
+  addr = shmgetat_helper(key, num_pages);
+  // TO DO CHANGE THIS LATER ASK TA
+  return (int)addr;
 }
 
 int
-sys_shmem_count(void)
+sys_shm_refcount(void)
 {
-  int page_number;
-  if (argint(0, &page_number) < 0) return -1;
-  return shmem_count(page_number);
+  int key;
+  
+  if(argint(0, (void *)&key) < 0)
+    return -1;
+  return shm_refcount_helper(key);
 }

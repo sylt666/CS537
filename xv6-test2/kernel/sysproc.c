@@ -89,7 +89,6 @@ sys_uptime(void)
   return xticks;
 }
 
-
 int
 sys_shmem_access(void)
 {

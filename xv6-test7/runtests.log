@@ -1,0 +1,1234 @@
+starting build
+
+**********************************************************************
+
+Test build
+build xv6 using make
+
+**********************************************************************
+Trying to build project using make
+make
+gcc  -I include -nostdinc -Wall -Werror -ggdb -fno-pic -fno-builtin -fno-strict-aliasing -fno-stack-protector -m32 \
+		-M -MG kernel/vm.c -MF kernel/vm.d -MT kernel/vm.d -MT kernel/vm.o
+gcc  -I include -nostdinc -Wall -Werror -ggdb -fno-pic -fno-builtin -fno-strict-aliasing -fno-stack-protector -m32 -c -o kernel/vm.o kernel/vm.c
+ld  -m    elf_i386 -nostdlib --omagic \
+		--section-start=.text=0x100000 --entry=main --output=kernel/kernel \
+		kernel/multiboot.o kernel/data.o kernel/bio.o kernel/console.o kernel/exec.o kernel/file.o kernel/fs.o kernel/ide.o kernel/ioapic.o kernel/kalloc.o kernel/kbd.o kernel/lapic.o kernel/main.o kernel/mp.o kernel/picirq.o kernel/pipe.o kernel/proc.o kernel/spinlock.o kernel/string.o kernel/swtch.o kernel/syscall.o kernel/sysfile.o kernel/sysproc.o kernel/timer.o kernel/trapasm.o kernel/trap.o kernel/uart.o kernel/vectors.o kernel/vm.o \
+		-b binary initcode bootother
+dd if=/dev/zero of=xv6.img count=10000
+10000+0 records in
+10000+0 records out
+5120000 bytes (5.1 MB) copied, 0.0119903 s, 427 MB/s
+dd if=kernel/bootblock of=xv6.img conv=notrunc
+1+0 records in
+1+0 records out
+512 bytes (512 B) copied, 6.6934e-05 s, 7.6 MB/s
+dd if=kernel/kernel of=xv6.img seek=1 conv=notrunc
+251+1 records in
+251+1 records out
+128598 bytes (129 kB) copied, 0.000298007 s, 432 MB/s
+
+
+test build PASSED
+ (build xv6 using make)
+
+starting shmgetat_invalid_input
+
+**********************************************************************
+
+Test shmgetat_invalid_input
+shmgetat invalid input test
+
+**********************************************************************
+Running xv6 user progam /u/c/s/cs537-1/ta/tests/3b/ctests/shmgetat_invalid_input.c
+Trying to build project using make
+make
+gcc  -I include -nostdinc -Wall -Werror -ggdb -fno-pic -fno-builtin -fno-strict-aliasing -fno-stack-protector -m32 \
+		-M -MG user/tester.c -MF user/tester.d -MT user/tester.d -MT user/tester.o
+gcc  -I include -nostdinc -Wall -Werror -ggdb -fno-pic -fno-builtin -fno-strict-aliasing -fno-stack-protector -m32 -c -o user/tester.o user/tester.c
+ld  -m    elf_i386 -nostdlib --omagic --entry=main --section-start=.text=0x0 --output=user/bin/tester user/tester.o user/ulib.o user/usys.o user/printf.o user/umalloc.o
+cp user/bin/tester fs/tester
+./tools/mkfs fs.img fs
+used 29 (bit 1 ninode 26) free 29 total 1024
+zombie
+echo
+stressfs
+mkdir
+init
+cat
+rm
+shmgetat_return_value
+kill
+wc
+forktest
+grep
+tester
+usertests
+sh
+README
+shmgetat_double_call_fork
+ls
+ln
+balloc: first 459 blocks have been allocated
+balloc: write bitmap block at sector 28
+rm user/bin/tester
+make qemu-nox CPUS=1
+Ctrl+a h for help
+/u/c/s/cs537-2/ta/tools/qemu -nographic -hdb fs.img xv6.img -smp 1
+Could not open option rom 'sgabios.bin': No such file or directory
+xv6...
+cpu0: starting
+init: starting sh
+FORK, USERTOP = 655360
+$ tester
+tester
+FORK, USERTOP = 655360
+TEST PASSED
+
+
+test shmgetat_invalid_input PASSED (10 of 10)
+ (shmgetat invalid input test)
+
+starting shmgetat_return_value
+
+**********************************************************************
+
+Test shmgetat_return_value
+shmgetat(X, 1) return value needs to be one of last 4 pages of virtual address space; first access needs to return last virtual page, second access needs to return second to last virtual page, etc.
+
+**********************************************************************
+Running xv6 user progam /u/c/s/cs537-1/ta/tests/3b/ctests/shmgetat_return_value.c
+Trying to build project using make
+make
+gcc  -I include -nostdinc -Wall -Werror -ggdb -fno-pic -fno-builtin -fno-strict-aliasing -fno-stack-protector -m32 \
+		-M -MG user/tester.c -MF user/tester.d -MT user/tester.d -MT user/tester.o
+gcc  -I include -nostdinc -Wall -Werror -ggdb -fno-pic -fno-builtin -fno-strict-aliasing -fno-stack-protector -m32 -c -o user/tester.o user/tester.c
+ld  -m    elf_i386 -nostdlib --omagic --entry=main --section-start=.text=0x0 --output=user/bin/tester user/tester.o user/ulib.o user/usys.o user/printf.o user/umalloc.o
+cp user/bin/tester fs/tester
+./tools/mkfs fs.img fs
+used 29 (bit 1 ninode 26) free 29 total 1024
+zombie
+echo
+stressfs
+mkdir
+init
+cat
+rm
+shmgetat_return_value
+kill
+wc
+forktest
+grep
+tester
+usertests
+sh
+README
+shmgetat_double_call_fork
+ls
+ln
+balloc: first 458 blocks have been allocated
+balloc: write bitmap block at sector 28
+rm user/bin/tester
+make qemu-nox CPUS=1
+Ctrl+a h for help
+/u/c/s/cs537-2/ta/tools/qemu -nographic -hdb fs.img xv6.img -smp 1
+Could not open option rom 'sgabios.bin': No such file or directory
+xv6...
+cpu0: starting
+init: starting sh
+FORK, USERTOP = 655360
+$ tester
+tester
+FORK, USERTOP = 655360
+TEST PASSED
+
+
+test shmgetat_return_value PASSED (10 of 10)
+ (shmgetat(X, 1) return value needs to be one of last 4 pages of virtual address space; first access needs to return last virtual page, second access needs to return second to last virtual page, etc.)
+
+starting shmgetat_return_value2
+
+**********************************************************************
+
+Test shmgetat_return_value2
+shmgetat(X, Y) return value needs to correpond to the base of correct of virtual address space page
+
+**********************************************************************
+Running xv6 user progam /u/c/s/cs537-1/ta/tests/3b/ctests/shmgetat_return_value2.c
+Trying to build project using make
+make
+gcc  -I include -nostdinc -Wall -Werror -ggdb -fno-pic -fno-builtin -fno-strict-aliasing -fno-stack-protector -m32 \
+		-M -MG user/tester.c -MF user/tester.d -MT user/tester.d -MT user/tester.o
+gcc  -I include -nostdinc -Wall -Werror -ggdb -fno-pic -fno-builtin -fno-strict-aliasing -fno-stack-protector -m32 -c -o user/tester.o user/tester.c
+ld  -m    elf_i386 -nostdlib --omagic --entry=main --section-start=.text=0x0 --output=user/bin/tester user/tester.o user/ulib.o user/usys.o user/printf.o user/umalloc.o
+cp user/bin/tester fs/tester
+./tools/mkfs fs.img fs
+used 29 (bit 1 ninode 26) free 29 total 1024
+zombie
+echo
+stressfs
+mkdir
+init
+cat
+rm
+shmgetat_return_value
+kill
+wc
+forktest
+grep
+tester
+usertests
+sh
+README
+shmgetat_double_call_fork
+ls
+ln
+balloc: first 458 blocks have been allocated
+balloc: write bitmap block at sector 28
+rm user/bin/tester
+make qemu-nox CPUS=1
+Ctrl+a h for help
+/u/c/s/cs537-2/ta/tools/qemu -nographic -hdb fs.img xv6.img -smp 1
+Could not open option rom 'sgabios.bin': No such file or directory
+xv6...
+cpu0: starting
+init: starting sh
+FORK, USERTOP = 655360
+$ tester
+tester
+FORK, USERTOP = 655360
+TEST PASSED
+
+
+test shmgetat_return_value2 PASSED (10 of 10)
+ (shmgetat(X, Y) return value needs to correpond to the base of correct of virtual address space page)
+
+starting shmgetat_double_call
+
+**********************************************************************
+
+Test shmgetat_double_call
+shmgetat called twice with same key, making sure same physical page is not mapped into 2 different places in virtual address space
+
+**********************************************************************
+Running xv6 user progam /u/c/s/cs537-1/ta/tests/3b/ctests/shmgetat_double_call.c
+Trying to build project using make
+make
+gcc  -I include -nostdinc -Wall -Werror -ggdb -fno-pic -fno-builtin -fno-strict-aliasing -fno-stack-protector -m32 \
+		-M -MG user/tester.c -MF user/tester.d -MT user/tester.d -MT user/tester.o
+gcc  -I include -nostdinc -Wall -Werror -ggdb -fno-pic -fno-builtin -fno-strict-aliasing -fno-stack-protector -m32 -c -o user/tester.o user/tester.c
+ld  -m    elf_i386 -nostdlib --omagic --entry=main --section-start=.text=0x0 --output=user/bin/tester user/tester.o user/ulib.o user/usys.o user/printf.o user/umalloc.o
+cp user/bin/tester fs/tester
+./tools/mkfs fs.img fs
+used 29 (bit 1 ninode 26) free 29 total 1024
+zombie
+echo
+stressfs
+mkdir
+init
+cat
+rm
+shmgetat_return_value
+kill
+wc
+forktest
+grep
+tester
+usertests
+sh
+README
+shmgetat_double_call_fork
+ls
+ln
+balloc: first 458 blocks have been allocated
+balloc: write bitmap block at sector 28
+rm user/bin/tester
+make qemu-nox CPUS=1
+Ctrl+a h for help
+/u/c/s/cs537-2/ta/tools/qemu -nographic -hdb fs.img xv6.img -smp 1
+Could not open option rom 'sgabios.bin': No such file or directory
+xv6...
+cpu0: starting
+init: starting sh
+FORK, USERTOP = 655360
+$ tester
+tester
+FORK, USERTOP = 655360
+IN IF BLOCK
+TEST PASSED
+
+
+test shmgetat_double_call PASSED (10 of 10)
+ (shmgetat called twice with same key, making sure same physical page is not mapped into 2 different places in virtual address space)
+
+starting shmgetat_double_call_fork
+
+**********************************************************************
+
+Test shmgetat_double_call_fork
+shmgetat called once in parent process. It is then called again after fork in child process. The address received should be the same address the parent process received.
+
+**********************************************************************
+Running xv6 user progam /u/c/s/cs537-1/ta/tests/3b/ctests/shmgetat_double_call_fork.c
+Trying to build project using make
+make
+gcc  -I include -nostdinc -Wall -Werror -ggdb -fno-pic -fno-builtin -fno-strict-aliasing -fno-stack-protector -m32 \
+		-M -MG user/tester.c -MF user/tester.d -MT user/tester.d -MT user/tester.o
+gcc  -I include -nostdinc -Wall -Werror -ggdb -fno-pic -fno-builtin -fno-strict-aliasing -fno-stack-protector -m32 -c -o user/tester.o user/tester.c
+ld  -m    elf_i386 -nostdlib --omagic --entry=main --section-start=.text=0x0 --output=user/bin/tester user/tester.o user/ulib.o user/usys.o user/printf.o user/umalloc.o
+cp user/bin/tester fs/tester
+./tools/mkfs fs.img fs
+used 29 (bit 1 ninode 26) free 29 total 1024
+zombie
+echo
+stressfs
+mkdir
+init
+cat
+rm
+shmgetat_return_value
+kill
+wc
+forktest
+grep
+tester
+usertests
+sh
+README
+shmgetat_double_call_fork
+ls
+ln
+balloc: first 459 blocks have been allocated
+balloc: write bitmap block at sector 28
+rm user/bin/tester
+make qemu-nox CPUS=1
+Ctrl+a h for help
+/u/c/s/cs537-2/ta/tools/qemu -nographic -hdb fs.img xv6.img -smp 1
+Could not open option rom 'sgabios.bin': No such file or directory
+xv6...
+cpu0: starting
+init: starting sh
+FORK, USERTOP = 655360
+$ tester
+tester
+FORK, USERTOP = 655360
+FORK, USERTOP = 655360
+IN IF BLOCK
+TEST PASSED
+
+
+test shmgetat_double_call_fork PASSED (10 of 10)
+ (shmgetat called once in parent process. It is then called again after fork in child process. The address received should be the same address the parent process received.)
+
+starting shmgetat_read_write
+
+**********************************************************************
+
+Test shmgetat_read_write
+making sure shared pages are readable and writable
+
+**********************************************************************
+Running xv6 user progam /u/c/s/cs537-1/ta/tests/3b/ctests/shmgetat_read_write.c
+Trying to build project using make
+make
+gcc  -I include -nostdinc -Wall -Werror -ggdb -fno-pic -fno-builtin -fno-strict-aliasing -fno-stack-protector -m32 \
+		-M -MG user/tester.c -MF user/tester.d -MT user/tester.d -MT user/tester.o
+gcc  -I include -nostdinc -Wall -Werror -ggdb -fno-pic -fno-builtin -fno-strict-aliasing -fno-stack-protector -m32 -c -o user/tester.o user/tester.c
+ld  -m    elf_i386 -nostdlib --omagic --entry=main --section-start=.text=0x0 --output=user/bin/tester user/tester.o user/ulib.o user/usys.o user/printf.o user/umalloc.o
+cp user/bin/tester fs/tester
+./tools/mkfs fs.img fs
+used 29 (bit 1 ninode 26) free 29 total 1024
+zombie
+echo
+stressfs
+mkdir
+init
+cat
+rm
+shmgetat_return_value
+kill
+wc
+forktest
+grep
+tester
+usertests
+sh
+README
+shmgetat_double_call_fork
+ls
+ln
+balloc: first 458 blocks have been allocated
+balloc: write bitmap block at sector 28
+rm user/bin/tester
+make qemu-nox CPUS=1
+Ctrl+a h for help
+/u/c/s/cs537-2/ta/tools/qemu -nographic -hdb fs.img xv6.img -smp 1
+Could not open option rom 'sgabios.bin': No such file or directory
+xv6...
+cpu0: starting
+init: starting sh
+FORK, USERTOP = 655360
+$ tester
+tester
+FORK, USERTOP = 655360
+TEST PASSED
+
+
+test shmgetat_read_write PASSED (10 of 10)
+ (making sure shared pages are readable and writable)
+
+starting shmgetat_communication
+
+**********************************************************************
+
+Test shmgetat_communication
+one process writing something and the other process reading it.
+
+**********************************************************************
+Running xv6 user progam /u/c/s/cs537-1/ta/tests/3b/ctests/shmgetat_communication.c
+Trying to build project using make
+make
+gcc  -I include -nostdinc -Wall -Werror -ggdb -fno-pic -fno-builtin -fno-strict-aliasing -fno-stack-protector -m32 \
+		-M -MG user/tester.c -MF user/tester.d -MT user/tester.d -MT user/tester.o
+gcc  -I include -nostdinc -Wall -Werror -ggdb -fno-pic -fno-builtin -fno-strict-aliasing -fno-stack-protector -m32 -c -o user/tester.o user/tester.c
+ld  -m    elf_i386 -nostdlib --omagic --entry=main --section-start=.text=0x0 --output=user/bin/tester user/tester.o user/ulib.o user/usys.o user/printf.o user/umalloc.o
+cp user/bin/tester fs/tester
+./tools/mkfs fs.img fs
+used 29 (bit 1 ninode 26) free 29 total 1024
+zombie
+echo
+stressfs
+mkdir
+init
+cat
+rm
+shmgetat_return_value
+kill
+wc
+forktest
+grep
+tester
+usertests
+sh
+README
+shmgetat_double_call_fork
+ls
+ln
+balloc: first 459 blocks have been allocated
+balloc: write bitmap block at sector 28
+rm user/bin/tester
+make qemu-nox CPUS=1
+Ctrl+a h for help
+/u/c/s/cs537-2/ta/tools/qemu -nographic -hdb fs.img xv6.img -smp 1
+Could not open option rom 'sgabios.bin': No such file or directory
+xv6...
+cpu0: starting
+init: starting sh
+FORK, USERTOP = 655360
+$ tester
+tester
+FORK, USERTOP = 655360
+FORK, USERTOP = 655360
+TEST PASSED
+
+
+test shmgetat_communication PASSED (10 of 10)
+ (one process writing something and the other process reading it.)
+
+starting shmgetat_full_address_space
+
+**********************************************************************
+
+Test shmgetat_full_address_space
+shmgetat should failed if the entire address space is full.
+
+**********************************************************************
+Running xv6 user progam /u/c/s/cs537-1/ta/tests/3b/ctests/shmgetat_full_address_space.c
+Trying to build project using make
+make
+gcc  -I include -nostdinc -Wall -Werror -ggdb -fno-pic -fno-builtin -fno-strict-aliasing -fno-stack-protector -m32 \
+		-M -MG user/tester.c -MF user/tester.d -MT user/tester.d -MT user/tester.o
+gcc  -I include -nostdinc -Wall -Werror -ggdb -fno-pic -fno-builtin -fno-strict-aliasing -fno-stack-protector -m32 -c -o user/tester.o user/tester.c
+ld  -m    elf_i386 -nostdlib --omagic --entry=main --section-start=.text=0x0 --output=user/bin/tester user/tester.o user/ulib.o user/usys.o user/printf.o user/umalloc.o
+cp user/bin/tester fs/tester
+./tools/mkfs fs.img fs
+used 29 (bit 1 ninode 26) free 29 total 1024
+zombie
+echo
+stressfs
+mkdir
+init
+cat
+rm
+shmgetat_return_value
+kill
+wc
+forktest
+grep
+tester
+usertests
+sh
+README
+shmgetat_double_call_fork
+ls
+ln
+balloc: first 458 blocks have been allocated
+balloc: write bitmap block at sector 28
+rm user/bin/tester
+make qemu-nox CPUS=1
+Ctrl+a h for help
+/u/c/s/cs537-2/ta/tools/qemu -nographic -hdb fs.img xv6.img -smp 1
+Could not open option rom 'sgabios.bin': No such file or directory
+xv6...
+cpu0: starting
+init: starting sh
+FORK, USERTOP = 655360
+$ tester
+tester
+FORK, USERTOP = 655360
+TEST PASSED
+
+
+test shmgetat_full_address_space PASSED (10 of 10)
+ (shmgetat should failed if the entire address space is full.)
+
+starting shmgetat_full_address_space2
+
+**********************************************************************
+
+Test shmgetat_full_address_space2
+sbrk should not allocate and go past a shared memory.
+
+**********************************************************************
+Running xv6 user progam /u/c/s/cs537-1/ta/tests/3b/ctests/shmgetat_full_address_space2.c
+Trying to build project using make
+make
+gcc  -I include -nostdinc -Wall -Werror -ggdb -fno-pic -fno-builtin -fno-strict-aliasing -fno-stack-protector -m32 \
+		-M -MG user/tester.c -MF user/tester.d -MT user/tester.d -MT user/tester.o
+gcc  -I include -nostdinc -Wall -Werror -ggdb -fno-pic -fno-builtin -fno-strict-aliasing -fno-stack-protector -m32 -c -o user/tester.o user/tester.c
+ld  -m    elf_i386 -nostdlib --omagic --entry=main --section-start=.text=0x0 --output=user/bin/tester user/tester.o user/ulib.o user/usys.o user/printf.o user/umalloc.o
+cp user/bin/tester fs/tester
+./tools/mkfs fs.img fs
+used 29 (bit 1 ninode 26) free 29 total 1024
+zombie
+echo
+stressfs
+mkdir
+init
+cat
+rm
+shmgetat_return_value
+kill
+wc
+forktest
+grep
+tester
+usertests
+sh
+README
+shmgetat_double_call_fork
+ls
+ln
+balloc: first 458 blocks have been allocated
+balloc: write bitmap block at sector 28
+rm user/bin/tester
+make qemu-nox CPUS=1
+Ctrl+a h for help
+/u/c/s/cs537-2/ta/tools/qemu -nographic -hdb fs.img xv6.img -smp 1
+Could not open option rom 'sgabios.bin': No such file or directory
+xv6...
+cpu0: starting
+init: starting sh
+FORK, USERTOP = 655360
+$ tester
+tester
+FORK, USERTOP = 655360
+cpu0: panic: remap
+ 107395 10782a 103d91 105af4 104cd7 105edb 105ccc
+
+test shmgetat_full_address_space2 FAILED (0 of 10)
+ (sbrk should not allocate and go past a shared memory.)
+ xv6 kernel panic
+
+starting shmgetat_exec
+
+**********************************************************************
+
+Test shmgetat_exec
+a new exec-ed program should not have access to shared pages when it begins.
+
+**********************************************************************
+Running xv6 user progam /u/c/s/cs537-1/ta/tests/3b/ctests/shmgetat_exec.c
+overwritting tester_helper with /u/c/s/cs537-1/ta/tests/3b/ctests/shmgetat_exec_helper.c
+Trying to build project using make
+make
+gcc  -I include -nostdinc -Wall -Werror -ggdb -fno-pic -fno-builtin -fno-strict-aliasing -fno-stack-protector -m32 \
+		-M -MG user/tester.c -MF user/tester.d -MT user/tester.d -MT user/tester.o
+gcc  -I include -nostdinc -Wall -Werror -ggdb -fno-pic -fno-builtin -fno-strict-aliasing -fno-stack-protector -m32 \
+		-M -MG user/echo.c -MF user/echo.d -MT user/echo.d -MT user/echo.o
+gcc  -I include -nostdinc -Wall -Werror -ggdb -fno-pic -fno-builtin -fno-strict-aliasing -fno-stack-protector -m32 -c -o user/echo.o user/echo.c
+ld  -m    elf_i386 -nostdlib --omagic --entry=main --section-start=.text=0x0 --output=user/bin/echo user/echo.o user/ulib.o user/usys.o user/printf.o user/umalloc.o
+cp user/bin/echo fs/echo
+gcc  -I include -nostdinc -Wall -Werror -ggdb -fno-pic -fno-builtin -fno-strict-aliasing -fno-stack-protector -m32 -c -o user/tester.o user/tester.c
+ld  -m    elf_i386 -nostdlib --omagic --entry=main --section-start=.text=0x0 --output=user/bin/tester user/tester.o user/ulib.o user/usys.o user/printf.o user/umalloc.o
+cp user/bin/tester fs/tester
+./tools/mkfs fs.img fs
+used 29 (bit 1 ninode 26) free 29 total 1024
+zombie
+echo
+stressfs
+mkdir
+init
+cat
+rm
+shmgetat_return_value
+kill
+wc
+forktest
+grep
+tester
+usertests
+sh
+README
+shmgetat_double_call_fork
+ls
+ln
+balloc: first 459 blocks have been allocated
+balloc: write bitmap block at sector 28
+rm user/bin/tester user/bin/echo
+make qemu-nox CPUS=1
+Ctrl+a h for help
+/u/c/s/cs537-2/ta/tools/qemu -nographic -hdb fs.img xv6.img -smp 1
+Could not open option rom 'sgabios.bin': No such file or directory
+xv6...
+cpu0: starting
+init: starting sh
+FORK, USERTOP = 655360
+$ tester
+tester
+FORK, USERTOP = 655360
+FORK, USERTOP = 655360
+in helper
+pid 4 echo: trap 14 err 6 on cpu 0 eip 0x67 addr 0x9f000--kill proc
+TEST PASSED
+
+
+test shmgetat_exec PASSED (10 of 10)
+ (a new exec-ed program should not have access to shared pages when it begins.)
+
+starting shmgetat_exec2
+
+**********************************************************************
+
+Test shmgetat_exec2
+a new exec-ed program should reallocate virtual pages if shmgetat is called.
+
+**********************************************************************
+Running xv6 user progam /u/c/s/cs537-1/ta/tests/3b/ctests/shmgetat_exec2.c
+overwritting tester_helper with /u/c/s/cs537-1/ta/tests/3b/ctests/shmgetat_exec2_helper.c
+Trying to build project using make
+make
+gcc  -I include -nostdinc -Wall -Werror -ggdb -fno-pic -fno-builtin -fno-strict-aliasing -fno-stack-protector -m32 \
+		-M -MG user/tester.c -MF user/tester.d -MT user/tester.d -MT user/tester.o
+gcc  -I include -nostdinc -Wall -Werror -ggdb -fno-pic -fno-builtin -fno-strict-aliasing -fno-stack-protector -m32 \
+		-M -MG user/echo.c -MF user/echo.d -MT user/echo.d -MT user/echo.o
+gcc  -I include -nostdinc -Wall -Werror -ggdb -fno-pic -fno-builtin -fno-strict-aliasing -fno-stack-protector -m32 -c -o user/echo.o user/echo.c
+ld  -m    elf_i386 -nostdlib --omagic --entry=main --section-start=.text=0x0 --output=user/bin/echo user/echo.o user/ulib.o user/usys.o user/printf.o user/umalloc.o
+cp user/bin/echo fs/echo
+gcc  -I include -nostdinc -Wall -Werror -ggdb -fno-pic -fno-builtin -fno-strict-aliasing -fno-stack-protector -m32 -c -o user/tester.o user/tester.c
+ld  -m    elf_i386 -nostdlib --omagic --entry=main --section-start=.text=0x0 --output=user/bin/tester user/tester.o user/ulib.o user/usys.o user/printf.o user/umalloc.o
+cp user/bin/tester fs/tester
+./tools/mkfs fs.img fs
+used 29 (bit 1 ninode 26) free 29 total 1024
+zombie
+echo
+stressfs
+mkdir
+init
+cat
+rm
+shmgetat_return_value
+kill
+wc
+forktest
+grep
+tester
+usertests
+sh
+README
+shmgetat_double_call_fork
+ls
+ln
+balloc: first 459 blocks have been allocated
+balloc: write bitmap block at sector 28
+rm user/bin/tester user/bin/echo
+make qemu-nox CPUS=1
+Ctrl+a h for help
+/u/c/s/cs537-2/ta/tools/qemu -nographic -hdb fs.img xv6.img -smp 1
+Could not open option rom 'sgabios.bin': No such file or directory
+xv6...
+cpu0: starting
+init: starting sh
+FORK, USERTOP = 655360
+$ tester
+tester
+FORK, USERTOP = 655360
+FORK, USERTOP = 655360
+IN IF BLOCK
+pid 4 echo: trap 14 err 6 on cpu 0 eip 0x82 addr 0x9c000--kill proc
+IN IF BLOCK
+TEST FAILED
+
+
+test shmgetat_exec2 FAILED (0 of 10)
+ (a new exec-ed program should reallocate virtual pages if shmgetat is called.)
+ tester failed
+
+starting shmgetat_syscall_args
+
+**********************************************************************
+
+Test shmgetat_syscall_args
+making sure pointers from shared pages can be successfully passed to system calls. ***NOTE*** only open and write system calls are tested here; when grading, we may change the test to any other system call that may take pointers.
+
+**********************************************************************
+Running xv6 user progam /u/c/s/cs537-1/ta/tests/3b/ctests/shmgetat_syscall_args.c
+Trying to build project using make
+make
+gcc  -I include -nostdinc -Wall -Werror -ggdb -fno-pic -fno-builtin -fno-strict-aliasing -fno-stack-protector -m32 \
+		-M -MG user/tester.c -MF user/tester.d -MT user/tester.d -MT user/tester.o
+gcc  -I include -nostdinc -Wall -Werror -ggdb -fno-pic -fno-builtin -fno-strict-aliasing -fno-stack-protector -m32 -c -o user/tester.o user/tester.c
+ld  -m    elf_i386 -nostdlib --omagic --entry=main --section-start=.text=0x0 --output=user/bin/tester user/tester.o user/ulib.o user/usys.o user/printf.o user/umalloc.o
+cp user/bin/tester fs/tester
+./tools/mkfs fs.img fs
+used 29 (bit 1 ninode 26) free 29 total 1024
+zombie
+echo
+stressfs
+mkdir
+init
+cat
+rm
+shmgetat_return_value
+kill
+wc
+forktest
+grep
+tester
+usertests
+sh
+README
+shmgetat_double_call_fork
+ls
+ln
+balloc: first 460 blocks have been allocated
+balloc: write bitmap block at sector 28
+rm user/bin/tester
+make qemu-nox CPUS=1
+Ctrl+a h for help
+/u/c/s/cs537-2/ta/tools/qemu -nographic -hdb fs.img xv6.img -smp 1
+Could not open option rom 'sgabios.bin': No such file or directory
+xv6...
+cpu0: starting
+init: starting sh
+FORK, USERTOP = 655360
+$ tester
+tester
+FORK, USERTOP = 655360
+open system call failed to take a string from within a shared page
+TEST FAILED
+
+
+test shmgetat_syscall_args FAILED (0 of 10)
+ (making sure pointers from shared pages can be successfully passed to system calls. ***NOTE*** only open and write system calls are tested here; when grading, we may change the test to any other system call that may take pointers.)
+ tester failed
+
+starting shm_refcount_invalid_input
+
+**********************************************************************
+
+Test shm_refcount_invalid_input
+shm_refcount invalid input test
+
+**********************************************************************
+Running xv6 user progam /u/c/s/cs537-1/ta/tests/3b/ctests/shm_refcount_invalid_input.c
+Trying to build project using make
+make
+gcc  -I include -nostdinc -Wall -Werror -ggdb -fno-pic -fno-builtin -fno-strict-aliasing -fno-stack-protector -m32 \
+		-M -MG user/tester.c -MF user/tester.d -MT user/tester.d -MT user/tester.o
+gcc  -I include -nostdinc -Wall -Werror -ggdb -fno-pic -fno-builtin -fno-strict-aliasing -fno-stack-protector -m32 -c -o user/tester.o user/tester.c
+ld  -m    elf_i386 -nostdlib --omagic --entry=main --section-start=.text=0x0 --output=user/bin/tester user/tester.o user/ulib.o user/usys.o user/printf.o user/umalloc.o
+cp user/bin/tester fs/tester
+./tools/mkfs fs.img fs
+used 29 (bit 1 ninode 26) free 29 total 1024
+zombie
+echo
+stressfs
+mkdir
+init
+cat
+rm
+shmgetat_return_value
+kill
+wc
+forktest
+grep
+tester
+usertests
+sh
+README
+shmgetat_double_call_fork
+ls
+ln
+balloc: first 458 blocks have been allocated
+balloc: write bitmap block at sector 28
+rm user/bin/tester
+make qemu-nox CPUS=1
+Ctrl+a h for help
+/u/c/s/cs537-2/ta/tools/qemu -nographic -hdb fs.img xv6.img -smp 1
+Could not open option rom 'sgabios.bin': No such file or directory
+xv6...
+cpu0: starting
+init: starting sh
+FORK, USERTOP = 655360
+$ tester
+tester
+FORK, USERTOP = 655360
+TEST PASSED
+
+
+test shm_refcount_invalid_input PASSED (10 of 10)
+ (shm_refcount invalid input test)
+
+starting shm_refcount_zero
+
+**********************************************************************
+
+Test shm_refcount_zero
+shm_refcount should return 0 if no one is referencing the page.
+
+**********************************************************************
+Running xv6 user progam /u/c/s/cs537-1/ta/tests/3b/ctests/shm_refcount_zero.c
+Trying to build project using make
+make
+gcc  -I include -nostdinc -Wall -Werror -ggdb -fno-pic -fno-builtin -fno-strict-aliasing -fno-stack-protector -m32 \
+		-M -MG user/tester.c -MF user/tester.d -MT user/tester.d -MT user/tester.o
+gcc  -I include -nostdinc -Wall -Werror -ggdb -fno-pic -fno-builtin -fno-strict-aliasing -fno-stack-protector -m32 -c -o user/tester.o user/tester.c
+ld  -m    elf_i386 -nostdlib --omagic --entry=main --section-start=.text=0x0 --output=user/bin/tester user/tester.o user/ulib.o user/usys.o user/printf.o user/umalloc.o
+cp user/bin/tester fs/tester
+./tools/mkfs fs.img fs
+used 29 (bit 1 ninode 26) free 29 total 1024
+zombie
+echo
+stressfs
+mkdir
+init
+cat
+rm
+shmgetat_return_value
+kill
+wc
+forktest
+grep
+tester
+usertests
+sh
+README
+shmgetat_double_call_fork
+ls
+ln
+balloc: first 458 blocks have been allocated
+balloc: write bitmap block at sector 28
+rm user/bin/tester
+make qemu-nox CPUS=1
+Ctrl+a h for help
+/u/c/s/cs537-2/ta/tools/qemu -nographic -hdb fs.img xv6.img -smp 1
+Could not open option rom 'sgabios.bin': No such file or directory
+xv6...
+cpu0: starting
+init: starting sh
+FORK, USERTOP = 655360
+$ tester
+tester
+FORK, USERTOP = 655360
+TEST PASSED
+
+
+test shm_refcount_zero PASSED (10 of 10)
+ (shm_refcount should return 0 if no one is referencing the page.)
+
+starting shm_refcount_zero2
+
+**********************************************************************
+
+Test shm_refcount_zero2
+shm_refcount should return 0 after child process accesses and exits.
+
+**********************************************************************
+Running xv6 user progam /u/c/s/cs537-1/ta/tests/3b/ctests/shm_refcount_zero2.c
+Trying to build project using make
+make
+gcc  -I include -nostdinc -Wall -Werror -ggdb -fno-pic -fno-builtin -fno-strict-aliasing -fno-stack-protector -m32 \
+		-M -MG user/tester.c -MF user/tester.d -MT user/tester.d -MT user/tester.o
+gcc  -I include -nostdinc -Wall -Werror -ggdb -fno-pic -fno-builtin -fno-strict-aliasing -fno-stack-protector -m32 -c -o user/tester.o user/tester.c
+ld  -m    elf_i386 -nostdlib --omagic --entry=main --section-start=.text=0x0 --output=user/bin/tester user/tester.o user/ulib.o user/usys.o user/printf.o user/umalloc.o
+cp user/bin/tester fs/tester
+./tools/mkfs fs.img fs
+used 29 (bit 1 ninode 26) free 29 total 1024
+zombie
+echo
+stressfs
+mkdir
+init
+cat
+rm
+shmgetat_return_value
+kill
+wc
+forktest
+grep
+tester
+usertests
+sh
+README
+shmgetat_double_call_fork
+ls
+ln
+balloc: first 458 blocks have been allocated
+balloc: write bitmap block at sector 28
+rm user/bin/tester
+make qemu-nox CPUS=1
+Ctrl+a h for help
+/u/c/s/cs537-2/ta/tools/qemu -nographic -hdb fs.img xv6.img -smp 1
+Could not open option rom 'sgabios.bin': No such file or directory
+xv6...
+cpu0: starting
+init: starting sh
+FORK, USERTOP = 655360
+$ tester
+tester
+FORK, USERTOP = 655360
+FORK, USERTOP = 655360
+TEST FAILED
+
+
+test shm_refcount_zero2 FAILED (0 of 10)
+ (shm_refcount should return 0 after child process accesses and exits.)
+ tester failed
+
+starting shm_refcount_one
+
+**********************************************************************
+
+Test shm_refcount_one
+shm_refcount should return 1 after 1 access.
+
+**********************************************************************
+Running xv6 user progam /u/c/s/cs537-1/ta/tests/3b/ctests/shm_refcount_one.c
+Trying to build project using make
+make
+gcc  -I include -nostdinc -Wall -Werror -ggdb -fno-pic -fno-builtin -fno-strict-aliasing -fno-stack-protector -m32 \
+		-M -MG user/tester.c -MF user/tester.d -MT user/tester.d -MT user/tester.o
+gcc  -I include -nostdinc -Wall -Werror -ggdb -fno-pic -fno-builtin -fno-strict-aliasing -fno-stack-protector -m32 -c -o user/tester.o user/tester.c
+ld  -m    elf_i386 -nostdlib --omagic --entry=main --section-start=.text=0x0 --output=user/bin/tester user/tester.o user/ulib.o user/usys.o user/printf.o user/umalloc.o
+cp user/bin/tester fs/tester
+./tools/mkfs fs.img fs
+used 29 (bit 1 ninode 26) free 29 total 1024
+zombie
+echo
+stressfs
+mkdir
+init
+cat
+rm
+shmgetat_return_value
+kill
+wc
+forktest
+grep
+tester
+usertests
+sh
+README
+shmgetat_double_call_fork
+ls
+ln
+balloc: first 458 blocks have been allocated
+balloc: write bitmap block at sector 28
+rm user/bin/tester
+make qemu-nox CPUS=1
+Ctrl+a h for help
+/u/c/s/cs537-2/ta/tools/qemu -nographic -hdb fs.img xv6.img -smp 1
+Could not open option rom 'sgabios.bin': No such file or directory
+xv6...
+cpu0: starting
+init: starting sh
+FORK, USERTOP = 655360
+$ tester
+tester
+FORK, USERTOP = 655360
+TEST PASSED
+
+
+test shm_refcount_one PASSED (10 of 10)
+ (shm_refcount should return 1 after 1 access.)
+
+starting shm_refcount_one2
+
+**********************************************************************
+
+Test shm_refcount_one2
+shm_refcount should return 1 after 2 accesses to the same page.
+
+**********************************************************************
+Running xv6 user progam /u/c/s/cs537-1/ta/tests/3b/ctests/shm_refcount_one2.c
+Trying to build project using make
+make
+gcc  -I include -nostdinc -Wall -Werror -ggdb -fno-pic -fno-builtin -fno-strict-aliasing -fno-stack-protector -m32 \
+		-M -MG user/tester.c -MF user/tester.d -MT user/tester.d -MT user/tester.o
+gcc  -I include -nostdinc -Wall -Werror -ggdb -fno-pic -fno-builtin -fno-strict-aliasing -fno-stack-protector -m32 -c -o user/tester.o user/tester.c
+ld  -m    elf_i386 -nostdlib --omagic --entry=main --section-start=.text=0x0 --output=user/bin/tester user/tester.o user/ulib.o user/usys.o user/printf.o user/umalloc.o
+cp user/bin/tester fs/tester
+./tools/mkfs fs.img fs
+used 29 (bit 1 ninode 26) free 29 total 1024
+zombie
+echo
+stressfs
+mkdir
+init
+cat
+rm
+shmgetat_return_value
+kill
+wc
+forktest
+grep
+tester
+usertests
+sh
+README
+shmgetat_double_call_fork
+ls
+ln
+balloc: first 458 blocks have been allocated
+balloc: write bitmap block at sector 28
+rm user/bin/tester
+make qemu-nox CPUS=1
+Ctrl+a h for help
+/u/c/s/cs537-2/ta/tools/qemu -nographic -hdb fs.img xv6.img -smp 1
+Could not open option rom 'sgabios.bin': No such file or directory
+xv6...
+cpu0: starting
+init: starting sh
+FORK, USERTOP = 655360
+$ tester
+tester
+FORK, USERTOP = 655360
+IN IF BLOCK
+IN IF BLOCK
+IN IF BLOCK
+IN IF BLOCK
+IN IF BLOCK
+IN IF BLOCK
+IN IF BLOCK
+IN IF BLOCK
+TEST PASSED
+
+
+test shm_refcount_one2 PASSED (10 of 10)
+ (shm_refcount should return 1 after 2 accesses to the same page.)
+
+starting shm_refcount_fork
+
+**********************************************************************
+
+Test shm_refcount_fork
+shm_refcount should return 2 after fork if the parent process has accessed a shared page.
+
+**********************************************************************
+Running xv6 user progam /u/c/s/cs537-1/ta/tests/3b/ctests/shm_refcount_fork.c
+Trying to build project using make
+make
+gcc  -I include -nostdinc -Wall -Werror -ggdb -fno-pic -fno-builtin -fno-strict-aliasing -fno-stack-protector -m32 \
+		-M -MG user/tester.c -MF user/tester.d -MT user/tester.d -MT user/tester.o
+gcc  -I include -nostdinc -Wall -Werror -ggdb -fno-pic -fno-builtin -fno-strict-aliasing -fno-stack-protector -m32 -c -o user/tester.o user/tester.c
+ld  -m    elf_i386 -nostdlib --omagic --entry=main --section-start=.text=0x0 --output=user/bin/tester user/tester.o user/ulib.o user/usys.o user/printf.o user/umalloc.o
+cp user/bin/tester fs/tester
+./tools/mkfs fs.img fs
+used 29 (bit 1 ninode 26) free 29 total 1024
+zombie
+echo
+stressfs
+mkdir
+init
+cat
+rm
+shmgetat_return_value
+kill
+wc
+forktest
+grep
+tester
+usertests
+sh
+README
+shmgetat_double_call_fork
+ls
+ln
+balloc: first 458 blocks have been allocated
+balloc: write bitmap block at sector 28
+rm user/bin/tester
+make qemu-nox CPUS=1
+Ctrl+a h for help
+/u/c/s/cs537-2/ta/tools/qemu -nographic -hdb fs.img xv6.img -smp 1
+Could not open option rom 'sgabios.bin': No such file or directory
+xv6...
+cpu0: starting
+init: starting sh
+FORK, USERTOP = 655360
+$ tester
+tester
+FORK, USERTOP = 655360
+FORK, USERTOP = 655360
+TEST PASSED
+
+
+test shm_refcount_fork PASSED (10 of 10)
+ (shm_refcount should return 2 after fork if the parent process has accessed a shared page.)
+
+starting shm_refcount_exec
+
+**********************************************************************
+
+Test shm_refcount_exec
+Exec should decrement count for shared pages. Parent accesses a shared page, then it forks. Child performs exec to start a new program. In the new program, the count for the shared page should be 1.
+
+**********************************************************************
+Running xv6 user progam /u/c/s/cs537-1/ta/tests/3b/ctests/shm_refcount_exec.c
+overwritting tester_helper with /u/c/s/cs537-1/ta/tests/3b/ctests/shm_refcount_exec_helper.c
+Trying to build project using make
+make
+gcc  -I include -nostdinc -Wall -Werror -ggdb -fno-pic -fno-builtin -fno-strict-aliasing -fno-stack-protector -m32 \
+		-M -MG user/tester.c -MF user/tester.d -MT user/tester.d -MT user/tester.o
+gcc  -I include -nostdinc -Wall -Werror -ggdb -fno-pic -fno-builtin -fno-strict-aliasing -fno-stack-protector -m32 \
+		-M -MG user/echo.c -MF user/echo.d -MT user/echo.d -MT user/echo.o
+gcc  -I include -nostdinc -Wall -Werror -ggdb -fno-pic -fno-builtin -fno-strict-aliasing -fno-stack-protector -m32 -c -o user/echo.o user/echo.c
+ld  -m    elf_i386 -nostdlib --omagic --entry=main --section-start=.text=0x0 --output=user/bin/echo user/echo.o user/ulib.o user/usys.o user/printf.o user/umalloc.o
+cp user/bin/echo fs/echo
+gcc  -I include -nostdinc -Wall -Werror -ggdb -fno-pic -fno-builtin -fno-strict-aliasing -fno-stack-protector -m32 -c -o user/tester.o user/tester.c
+ld  -m    elf_i386 -nostdlib --omagic --entry=main --section-start=.text=0x0 --output=user/bin/tester user/tester.o user/ulib.o user/usys.o user/printf.o user/umalloc.o
+cp user/bin/tester fs/tester
+./tools/mkfs fs.img fs
+used 29 (bit 1 ninode 26) free 29 total 1024
+zombie
+echo
+stressfs
+mkdir
+init
+cat
+rm
+shmgetat_return_value
+kill
+wc
+forktest
+grep
+tester
+usertests
+sh
+README
+shmgetat_double_call_fork
+ls
+ln
+balloc: first 459 blocks have been allocated
+balloc: write bitmap block at sector 28
+rm user/bin/tester user/bin/echo
+make qemu-nox CPUS=1
+Ctrl+a h for help
+/u/c/s/cs537-2/ta/tools/qemu -nographic -hdb fs.img xv6.img -smp 1
+Could not open option rom 'sgabios.bin': No such file or directory
+xv6...
+cpu0: starting
+init: starting sh
+FORK, USERTOP = 655360
+$ tester
+tester
+FORK, USERTOP = 655360
+FORK, USERTOP = 655360
+n = 2
+TEST FAILED
+
+
+test shm_refcount_exec FAILED (0 of 10)
+ (Exec should decrement count for shared pages. Parent accesses a shared page, then it forks. Child performs exec to start a new program. In the new program, the count for the shared page should be 1.)
+ tester failed
+
+**********************************************************************
+Summary:
+test build PASSED
+ (build xv6 using make)
+
+test shmgetat_invalid_input PASSED (10 of 10)
+ (shmgetat invalid input test)
+
+test shmgetat_return_value PASSED (10 of 10)
+ (shmgetat(X, 1) return value needs to be one of last 4 pages of virtual address space; first access needs to return last virtual page, second access needs to return second to last virtual page, etc.)
+
+test shmgetat_return_value2 PASSED (10 of 10)
+ (shmgetat(X, Y) return value needs to correpond to the base of correct of virtual address space page)
+
+test shmgetat_double_call PASSED (10 of 10)
+ (shmgetat called twice with same key, making sure same physical page is not mapped into 2 different places in virtual address space)
+
+test shmgetat_double_call_fork PASSED (10 of 10)
+ (shmgetat called once in parent process. It is then called again after fork in child process. The address received should be the same address the parent process received.)
+
+test shmgetat_read_write PASSED (10 of 10)
+ (making sure shared pages are readable and writable)
+
+test shmgetat_communication PASSED (10 of 10)
+ (one process writing something and the other process reading it.)
+
+test shmgetat_full_address_space PASSED (10 of 10)
+ (shmgetat should failed if the entire address space is full.)
+
+test shmgetat_full_address_space2 FAILED (0 of 10)
+ (sbrk should not allocate and go past a shared memory.)
+ xv6 kernel panic
+
+test shmgetat_exec PASSED (10 of 10)
+ (a new exec-ed program should not have access to shared pages when it begins.)
+
+test shmgetat_exec2 FAILED (0 of 10)
+ (a new exec-ed program should reallocate virtual pages if shmgetat is called.)
+ tester failed
+
+test shmgetat_syscall_args FAILED (0 of 10)
+ (making sure pointers from shared pages can be successfully passed to system calls. ***NOTE*** only open and write system calls are tested here; when grading, we may change the test to any other system call that may take pointers.)
+ tester failed
+
+test shm_refcount_invalid_input PASSED (10 of 10)
+ (shm_refcount invalid input test)
+
+test shm_refcount_zero PASSED (10 of 10)
+ (shm_refcount should return 0 if no one is referencing the page.)
+
+test shm_refcount_zero2 FAILED (0 of 10)
+ (shm_refcount should return 0 after child process accesses and exits.)
+ tester failed
+
+test shm_refcount_one PASSED (10 of 10)
+ (shm_refcount should return 1 after 1 access.)
+
+test shm_refcount_one2 PASSED (10 of 10)
+ (shm_refcount should return 1 after 2 accesses to the same page.)
+
+test shm_refcount_fork PASSED (10 of 10)
+ (shm_refcount should return 2 after fork if the parent process has accessed a shared page.)
+
+test shm_refcount_exec FAILED (0 of 10)
+ (Exec should decrement count for shared pages. Parent accesses a shared page, then it forks. Child performs exec to start a new program. In the new program, the count for the shared page should be 1.)
+ tester failed
+
+Passed 15 of 20 tests.
+Overall 15 of 20
+Points 140 of 190

@@ -34,7 +34,7 @@ allocproc(void)
 {
   struct proc *p;
   char *sp;
-
+    
   acquire(&ptable.lock);
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
     if(p->state == UNUSED)
@@ -67,6 +67,14 @@ found:
   p->context = (struct context*)sp;
   memset(p->context, 0, sizeof *p->context);
   p->context->eip = (uint)forkret;
+  
+  int i;
+  p->shm_sz = USERTOP;
+  for (i = 0; i < 8; i++) {
+    p->shm_va[i] = USERTOP;
+  }
+  
+  
   return p;
 }
 
@@ -83,7 +91,6 @@ userinit(void)
   if((p->pgdir = setupkvm()) == 0)
     panic("userinit: out of memory?");
   inituvm(p->pgdir, _binary_initcode_start, (int)_binary_initcode_size);
-  shmem_init(p);
   p->sz = PGSIZE;
   memset(p->tf, 0, sizeof(*p->tf));
   p->tf->cs = (SEG_UCODE << 3) | DPL_USER;
@@ -110,8 +117,10 @@ growproc(int n)
   
   sz = proc->sz;
   if(n > 0){
-    if((sz = allocuvm(proc->pgdir, sz, sz + n)) == 0)
+    if((sz = allocuvm(proc->pgdir, sz, sz + n)) == 0){
       return -1;
+    } 
+    
   } else if(n < 0){
     if((sz = deallocuvm(proc->pgdir, sz, sz + n)) == 0)
       return -1;
@@ -134,6 +143,8 @@ fork(void)
   if((np = allocproc()) == 0)
     return -1;
 
+  //  cprintf("curr%d new%d\n",proc->shm_sz,np->shm_sz);
+  
   // Copy process state from p.
   if((np->pgdir = copyuvm(proc->pgdir, proc->sz)) == 0){
     kfree(np->kstack);
@@ -141,6 +152,31 @@ fork(void)
     np->state = UNUSED;
     return -1;
   }
+
+  // Copying shared memory
+  uint vaddr = USERTOP - PGSIZE;
+  pte_t *pte;
+  uint pa;
+  int j;
+  pte = walkpgdir(proc->pgdir, (char*) vaddr, 0);
+  if (pte == 0)
+    return -1;
+  while ((*pte & PTE_P) != 0){
+    pa = PTE_ADDR(*pte);
+    mappages(np->pgdir,(void*) vaddr, PGSIZE, pa, PTE_W|PTE_U);
+    vaddr = vaddr - PGSIZE;
+    pte = walkpgdir(proc->pgdir, (char*) vaddr, 0);
+    if (pte == 0)
+      return -1;
+  }
+  for (j = 0; j <= 7; j++) {
+    np->shm_va[j] = proc->shm_va[j];
+    if (np->shm_va[j] != USERTOP){
+      shm_pa.keys[j].ref_count +=1;
+    }
+  }
+  np->shm_sz = proc->shm_sz;
+  
   np->sz = proc->sz;
   np->parent = proc;
   *np->tf = *proc->tf;
@@ -156,13 +192,6 @@ fork(void)
   pid = np->pid;
   np->state = RUNNABLE;
   safestrcpy(np->name, proc->name, sizeof(proc->name));
-  
-  np->shmemcount = proc->shmemcount;
-  for (i = 0; i < SHMEMMAX; i++) {
-    np->shmemaddr[i] = proc->shmemaddr[i];
-    np->shmemvaddr[i] = proc->shmemvaddr[i];
-  }
-  shmem_fork(np);
   return pid;
 }
 
@@ -203,9 +232,6 @@ exit(void)
     }
   }
 
-  // Free shared memory
-  shmem_free(proc);
-
   // Jump into the scheduler, never to return.
   proc->state = ZOMBIE;
   sched();
@@ -233,7 +259,19 @@ wait(void)
         pid = p->pid;
         kfree(p->kstack);
         p->kstack = 0;
-        freevm(p->pgdir);
+        freevm(p->pgdir,p->sz);
+
+        // clearing shared memory attributes
+        p->shm_va[0] = USERTOP;
+        p->shm_va[1] = USERTOP;
+        p->shm_va[2] = USERTOP;
+        p->shm_va[3] = USERTOP;
+        p->shm_va[4] = USERTOP;
+        p->shm_va[5] = USERTOP;
+        p->shm_va[6] = USERTOP;
+        p->shm_va[7] = USERTOP;
+        p->shm_sz = USERTOP;
+        
         p->state = UNUSED;
         p->pid = 0;
         p->parent = 0;
@@ -452,4 +490,3 @@ procdump(void)
     cprintf("\n");
   }
 }
-

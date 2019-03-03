@@ -89,20 +89,26 @@ sys_uptime(void)
   return xticks;
 }
 
+// shmgetat system call
 int
-sys_shmem_access(void)
+sys_shmgetat(void)
 {
-  int n;
-  if(argint(0, &n) < 0)
+  int key;
+  int num_pages;
+
+  if((argint(0, &key) < 0) || (argint(1, &num_pages) < 0)) {    
     return -1;
-  return (int)shmem_access(n);
+  }
+  return (int) shmgetat(key, num_pages);  
 }
 
+
+// shm_refcount system call
 int
-sys_shmem_count(void)
+sys_shm_refcount(void)
 {
-  int n;
-  if (argint(0, &n) < 0)
+  int key;
+  if(argint(0, &key) < 0)
     return -1;
-  return shmem_count(n);
+  return shm_refcount(key);
 }

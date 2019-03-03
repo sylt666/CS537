@@ -17,10 +17,16 @@
 int
 fetchint(struct proc *p, uint addr, int *ip)
 {
-  if (p->pid != 1 && addr < PGSIZE)
+
+  int f1 = ((addr >= p->sz) && (addr < p->shm_sz));
+  int f2 = (addr >= USERTOP);
+  int f3 = ((addr+4 > p->sz) && (addr+4 <= p->shm_sz));
+  int f4 = (addr+4 > USERTOP);
+  //  if (addr >= USERTOP || addr+4 >= USERTOP)
+  if(f1 || f2 || f3 || f4)
+  {
     return -1;
-  if(addr >= p->sz || addr+4 > p->sz)
-    return -1;
+  }
   *ip = *(int*)(addr);
   return 0;
 }
@@ -32,13 +38,15 @@ int
 fetchstr(struct proc *p, uint addr, char **pp)
 {
   char *s, *ep;
-
-  if (p->pid != 1 && addr < PGSIZE)
-    return -1;
-  if(addr >= p->sz)
+  int f1 = ((addr >= p->sz) && (addr < p->shm_sz));
+  int f2 = (addr >= USERTOP);
+  if(f1 || f2) // changed from p->sz
     return -1;
   *pp = (char*)addr;
-  ep = (char*)p->sz;
+  if(addr < p->sz)
+    ep = (char*)p->sz;
+  else
+    ep = (char*)USERTOP;
   for(s = *pp; s < ep; s++)
     if(*s == 0)
       return s - *pp;
@@ -59,11 +67,17 @@ int
 argptr(int n, char **pp, int size)
 {
   int i;
-  
   if(argint(n, &i) < 0)
     return -1;
-  if((uint)i >= proc->sz || (uint)i+size > proc->sz || (uint)i < PGSIZE)
+  uint v = (uint) i;
+  int f1 = ((v >= proc->sz) && (v < proc->shm_sz));
+  int f2 = (v >= USERTOP);
+  int f3 = ((v+size> proc->sz) && (v+size <= proc->shm_sz));
+  int f4 = (v+size > USERTOP);
+  if(f1 || f2 || f3 || f4)
+  {
     return -1;
+  }
   *pp = (char*)i;
   return 0;
 }
@@ -107,8 +121,8 @@ static int (*syscalls[])(void) = {
 [SYS_wait]    sys_wait,
 [SYS_write]   sys_write,
 [SYS_uptime]  sys_uptime,
-[SYS_shmem_access] sys_shmem_access,
-[SYS_shmem_count] sys_shmem_count
+[SYS_shmgetat] sys_shmgetat,
+[SYS_shm_refcount] sys_shm_refcount,
 };
 
 // Called on a syscall trap. Checks that the syscall number (passed via eax)

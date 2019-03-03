@@ -57,7 +57,8 @@ mainc(void)
   if(!ismp)
     timerinit();   // uniprocessor timer
   bootothers();    // start other processors
-  shmem_init();
+  shmem_ginit();   // init global shared memory struct
+
   // Finish setting up this processor in
   cinit();
   sti();           // enable inturrupts

@@ -8,6 +8,18 @@
 int
 main(int argc, char *argv[])
 {
-  printf(1, "%s", "** Placeholder program for grading scripts **\n");
+  void *addr;
+  int key = 1;
+  int num_pages = 1;
+  printf(1, "before calling shmgetat in tester\n");
+  addr = shmgetat(key, num_pages);
+  printf(1, "addr %d\n", addr);
+
+  int count = shm_refcount(key);
+  printf(1, "count %d\n",count);
+  while(1){
+  	
+  }
+
   exit();
 }

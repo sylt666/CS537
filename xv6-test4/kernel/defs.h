@@ -9,6 +9,7 @@ struct pipe;
 struct proc;
 struct spinlock;
 struct stat;
+struct sh_phy_mem;
 
 // bio.c
 void            binit(void);
@@ -109,12 +110,6 @@ void            userinit(void);
 int             wait(void);
 void            wakeup(void*);
 void            yield(void);
-void            shmem_ginit(void);
-void            shmem_init(struct proc *p);
-void*           shmem_access(int page_number);
-int             shmem_count(int page_number);
-void            shmem_free(struct proc *p);
-void            shmem_fork(struct proc *p);
 
 // swtch.S
 void            swtch(struct context**, struct context*);
@@ -167,13 +162,21 @@ pde_t*          setupkvm(void);
 char*           uva2ka(pde_t*, char*);
 int             allocuvm(pde_t*, uint, uint);
 int             deallocuvm(pde_t*, uint, uint);
-void            freevm(pde_t*);
+void            freevm(pde_t*, uint);
 void            inituvm(pde_t*, char*, uint);
 int             loaduvm(pde_t*, char*, struct inode*, uint, uint);
 pde_t*          copyuvm(pde_t*, uint);
 void            switchuvm(struct proc*);
 void            switchkvm(void);
 int             copyout(pde_t*, uint, void*, uint);
+void            shmeminit(void);
+void            shm_init(void);
+void*           shmgetat(int, int);
+int             mappages(pde_t*, void*, uint, uint, int);
+uint*           walkpgdir(pde_t* , const void*, int);
+void            checkifshared(uint*);
+int             deallocshm(pde_t*, uint, uint);
+int             shm_refcount(int);
 
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))

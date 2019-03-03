@@ -16,6 +16,7 @@ exec(char *path, char **argv)
   struct inode *ip;
   struct proghdr ph;
   pde_t *pgdir, *oldpgdir;
+  uint oldsz;
 
   if((ip = namei(path)) == 0)
     return -1;
@@ -32,7 +33,7 @@ exec(char *path, char **argv)
     goto bad;
 
   // Load program into memory.
-  sz = PGSIZE;
+  sz = 0;
   for(i=0, off=elf.phoff; i<elf.phnum; i++, off+=sizeof(ph)){
     if(readi(ip, (char*)&ph, off, sizeof(ph)) != sizeof(ph))
       goto bad;
@@ -82,18 +83,23 @@ exec(char *path, char **argv)
 
   // Commit to the user image.
   oldpgdir = proc->pgdir;
+  oldsz = proc->sz;
   proc->pgdir = pgdir;
   proc->sz = sz;
   proc->tf->eip = elf.entry;  // main
   proc->tf->esp = sp;
+  int j;
+  for (j = 0; j < 8; j++) {
+    proc->shm_va[j] = USERTOP;
+  }
+  proc->shm_sz = USERTOP;
   switchuvm(proc);
-  freevm(oldpgdir);
-
+  freevm(oldpgdir, oldsz);
   return 0;
 
  bad:
   if(pgdir)
-    freevm(pgdir);
+    freevm(pgdir, sz);
   if(ip)
     iunlockput(ip);
   return -1;

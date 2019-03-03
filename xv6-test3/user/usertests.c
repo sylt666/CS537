@@ -1376,7 +1376,6 @@ sbrktest(void)
 
   // if those failed allocations freed up the pages they did allocate,
   // we'll be able to allocate here
-  printf(stdout, "proc: %d, sz: %x, %d\n", (int) getpid(), sbrk(0), sbrk(0));
   c = sbrk(PAGE);
   for(i = 0; i < sizeof(pids)/sizeof(pids[0]); i++){
     if(pids[i] == -1)
@@ -1384,7 +1383,6 @@ sbrktest(void)
     kill(pids[i]);
     wait();
   }
-  printf(stdout, "c=%x, %d\n", c, c);
   if(c == (char*)0xffffffff){
     printf(stdout, "failed sbrk leaked memory\n");
     exit();
@@ -1492,12 +1490,9 @@ main(int argc, char *argv[])
   }
   close(open("usertests.ran", O_CREATE));
 
-  /*
   bigargtest();
   bsstest();
-  */
   sbrktest();
-  /*
   validatetest();
 
   opentest();
@@ -1526,7 +1521,6 @@ main(int argc, char *argv[])
   bigdir(); // slow
 
   exectest();
-  */
 
   exit();
 }

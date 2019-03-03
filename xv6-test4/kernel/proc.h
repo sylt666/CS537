@@ -63,10 +63,6 @@ enum procstate { UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 struct proc {
   uint sz;                     // Size of process memory (bytes)
   pde_t* pgdir;                // Page table
-  int shmem[SHMEMMAX];         // Whether a shared memory is been used
-  int shmemcount;              // Count of shared pages
-  void* shmemaddr[SHMEMMAX];   // Shared memory address
-  void* shmemvaddr[SHMEMMAX];  // Map of page number to virtual address
   char *kstack;                // Bottom of kernel stack for this process
   enum procstate state;        // Process state
   volatile int pid;            // Process ID
@@ -78,6 +74,9 @@ struct proc {
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
+  uint shm_va[8];              // To store virtual address of each key
+  uint shm_sz;                 // To store the last free pointer
+  
 };
 
 // Process memory is laid out contiguously, low addresses first:
@@ -85,5 +84,19 @@ struct proc {
 //   original data and bss
 //   fixed-size stack
 //   expandable heap
+
+
+
+// Shared memory structures
+struct sh_phy_mem {
+  int ref_count; // Number of processes accessing this memory
+  int num_pages; // Number of pages
+  char *page_ptr[4];  
+};
+
+struct {
+  struct sh_phy_mem keys[8];
+}shm_pa;
+
 
 #endif // _PROC_H_

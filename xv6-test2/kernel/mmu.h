@@ -126,6 +126,7 @@ struct segdesc {
 #define PGROUNDDOWN(a) ((char*)((((unsigned int)(a)) & ~(PGSIZE-1))))
 
 #define SHMEMMAX    4       // The maximum shared pages for each proc
+
 // Page table/directory entry flags.
 #define PTE_P		0x001	// Present
 #define PTE_W		0x002	// Writeable

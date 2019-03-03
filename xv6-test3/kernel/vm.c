@@ -10,6 +10,15 @@ extern char data[];  // defined in data.S
 
 static pde_t *kpgdir;  // for use in scheduler()
 
+// key struct to store the keys of shared mem
+struct _key {
+  int shkey_num_pages;
+  void* physical_addr[4];
+  int num_proc;
+};
+
+struct _key shkey[8];
+
 // Allocate one page table for the machine for the kernel address
 // space for scheduler processes.
 void
@@ -240,9 +249,7 @@ allocuvm(pde_t *pgdir, uint oldsz, uint newsz)
   for(; a < newsz; a += PGSIZE){
     mem = kalloc();
     if(mem == 0){
-      cprintf("proc %d: allocuvm out of memory\n", proc->pid);
-      cprintf("proc %d: newsz: %d\n", proc->pid, newsz);
-      cprintf("proc %d: oldsz: %d\n", proc->pid, oldsz);
+      cprintf("allocuvm out of memory\n");
       deallocuvm(pgdir, newsz, oldsz);
       return 0;
     }
@@ -261,6 +268,7 @@ deallocuvm(pde_t *pgdir, uint oldsz, uint newsz)
 {
   pte_t *pte;
   uint a, pa;
+  int clean_flag = 1, dec_flag = 0;
 
   if(newsz >= oldsz)
     return oldsz;
@@ -272,12 +280,92 @@ deallocuvm(pde_t *pgdir, uint oldsz, uint newsz)
       pa = PTE_ADDR(*pte);
       if(pa == 0)
         panic("kfree");
-      kfree((char*)pa);
+      // check if the key has num_proc>1 then  iterate through all addresses of that and 
+      // compare with the pa if match then clean = 0
+      int i, j;
+      for (i = 0; i < 8; ++i) {
+        for (j = 0; j < shkey[i].shkey_num_pages; ++j) {
+          if (pa == (int)shkey[i].physical_addr[j]) {
+            if(shkey[i].num_proc > 1)
+              clean_flag = 0;
+            dec_flag = 1;
+          }
+        }
+        if(dec_flag)
+          shkey[i].num_proc--;
+      }
+      if(clean_flag == 1) {
+        // cprintf("cleaning up addr %d", pa);
+        kfree((char*)pa);
+      }
       *pte = 0;
+      clean_flag = 1;
     }
   }
   return newsz;
 }
+/*int
+deallocuvm(pde_t *pgdir, uint oldsz, uint newsz)
+{
+  pte_t *pte;
+  uint a, pa;
+
+  if(newsz >= oldsz)
+    return oldsz;
+
+  // take keys associated with shared mem for process in array
+  int keys_arr[8]; // array of keys where shared mem is used by more than one process including current
+  int i, k, t;
+  int j = 0; // this will be number of keys associated after for loop below
+  int clean_flag = 1;
+  for (i = 0; i < 8; ++i)
+  {
+    if(proc->keys_associated[i] == 1 && shkey[i].num_proc > 1) {
+      keys_arr[j++] = i;
+    }
+    // decrement the num process asdocaited as this process is exiting
+    if(proc->keys_associated[i] == 1) {
+      cprintf("decrement count num_proc\n");
+      shkey[i].num_proc--;
+    }
+  }
+  cprintf("keys arr ------------------\n");
+  for (i = 0; i < j; ++i)
+  {
+    cprintf("%d ",keys_arr[i]);
+  }
+
+  a = PGROUNDUP(newsz);
+  for(; a  < oldsz; a += PGSIZE){
+    pte = walkpgdir(pgdir, (char*)a, 0);
+    if(pte && (*pte & PTE_P) != 0){
+      pa = PTE_ADDR(*pte);
+      if(pa == 0)
+        panic("kfree");
+      
+      // check if the shared page is used by someone dont free it
+      for (k = 0; k < j; ++k)
+      {
+          for (t = 0; t < shkey[keys_arr[k]].shkey_num_pages; ++t)
+          {
+            if(pa == (int)shkey[keys_arr[k]].physical_addr[t])
+              clean_flag = 0;
+          }
+          // decrement the counter of associated key
+          
+
+      }
+
+      if(clean_flag == 1) {
+        cprintf("pa address in deallocuvm %d\n", pa);
+        kfree((char*)pa);
+      }
+      *pte = 0;
+      clean_flag = 1;
+    }
+  }
+  return newsz;
+}*/
 
 // Free a page table and all the physical memory pages
 // in the user part.
@@ -288,10 +376,7 @@ freevm(pde_t *pgdir)
 
   if(pgdir == 0)
     panic("freevm: no pgdir");
-
-  // UPDATE: freevm: do not free top 4 pages, do this manually at proc.c/wait
-  deallocuvm(pgdir, USERTOP-SHMEM_PAGES*PGSIZE, 0);
-
+  deallocuvm(pgdir, USERTOP, 0);
   for(i = 0; i < NPDENTRIES; i++){
     if(pgdir[i] & PTE_P)
       kfree((char*)PTE_ADDR(pgdir[i]));
@@ -311,9 +396,7 @@ copyuvm(pde_t *pgdir, uint sz)
 
   if((d = setupkvm()) == 0)
     return 0;
-
-  // UPDATE: copyuvm: first page invalid, skip
-  for(i = PGSIZE; i < sz; i += PGSIZE){
+  for(i = 0; i < sz; i += PGSIZE){
     if((pte = walkpgdir(pgdir, (void*)i, 0)) == 0)
       panic("copyuvm: pte should exist");
     if(!(*pte & PTE_P))
@@ -325,7 +408,6 @@ copyuvm(pde_t *pgdir, uint sz)
     if(mappages(d, (void*)i, PGSIZE, PADDR(mem), PTE_W|PTE_U) < 0)
       goto bad;
   }
-  
   return d;
 
 bad:
@@ -373,80 +455,125 @@ copyout(pde_t *pgdir, uint va, void *p, uint len)
   return 0;
 }
 
-// UPDATE: shmem_init, shmem_count, shmem_access, shmem_fork, shmem_clean, vm.c
 
-void
-shmem_init(void)
+// shared pages implimentation
+
+
+void shmeminit(void)
 {
-  int i;
-  for (i = 0; i < SHMEM_PAGES; i++) {
-    shmem_counts[i] = 0;
-    if ((shmem_addrs[i] = kalloc()) == 0) {
-      panic("shmeminit failed");
+  // initialise the key structure 
+  int i, j;
+  for (i = 0; i < 8; ++i)
+  {
+    shkey[i].shkey_num_pages = 0;
+    shkey[i].num_proc = 0;
+    for (j = 0; j < 4; ++j)
+    {
+      shkey[i].physical_addr[j] = NULL;
     }
-    memset(shmem_addrs[i], 0, PGSIZE);
   }
-}
-
-int
-shmem_count(int page_number)
-{
-  if (page_number < 0 || page_number >= SHMEM_PAGES)
-    return -1;
-  return shmem_counts[page_number]; 
-}
-
-void*
-shmem_access(int page_number)
-{
-  if (page_number < 0 || page_number >= SHMEM_PAGES)
-    return NULL;
-  if (proc->svas[page_number] != 0)
-      return (void *)proc->svas[page_number];
-  if (proc->sz > proc->ssz-PGSIZE) return NULL;
-  int flag = mappages(proc->pgdir, (char*)(proc->ssz-PGSIZE), PGSIZE, 
-          PADDR(shmem_addrs[page_number]), PTE_W|PTE_U);
-  if(flag < 0)
-      return NULL;
-  proc->ssz -= PGSIZE;
-  shmem_counts[page_number] ++;
-  proc->svas[page_number] = proc->ssz;
-  return (void *)proc->ssz;
-}
-
-int
-shmem_fork(struct proc* np)
-{
-    int i;
-    int flag;
-    for (i = 0; i < SHMEM_PAGES; i++) {
-        if (proc->svas[i] != 0) {
-            flag = mappages(np->pgdir, (char *)(proc->svas[i]), PGSIZE, 
-                    PADDR(shmem_addrs[i]), PTE_W|PTE_U);
-            if (flag < 0)
-                return -1;
-            np->svas[i] = proc->svas[i];
-            shmem_counts[i] ++;
-        }
-    }
-    return 0;
+  // cprintf("IN shmeminit");
 }
 
 void
-shmem_clean(struct proc* p)
+print_shkey(void)
 {
-    pte_t *pte;
-    deallocuvm(p->pgdir, p->ssz, USERTOP-SHMEM_PAGES*PGSIZE);
-    int i;
-    for (i = 0; i < SHMEM_PAGES; i++) {
-        if (p->svas[i] != 0) {
-            pte = walkpgdir(p->pgdir, (char*)p->svas[i], 0);
-            if(pte && (*pte & PTE_P) != 0){
-                *pte = 0;
-            }
-            shmem_counts[i] --;
-            p->svas[i] = 0;
-        }
+  int i, j;
+  for (j = 0; j < 8; ++j)
+  {
+    cprintf("\nKEY %d ------------\n", j);
+    cprintf("shkey_num_pages : %d\n", shkey[j].shkey_num_pages);
+    cprintf("num_proc : %d\n", shkey[j].num_proc);
+    for (i = 0; i < 4; ++i)
+    {
+      cprintf("physical_addr[%d] : %d\n ", i, shkey[j].physical_addr[i]);
     }
-    p->ssz = 0;
+  }
+ 
+}
+
+// system calls definations below 
+void*
+shmgetat_helper(int key, int num_pages)
+{
+  // check if process alredy has shared mem associated to key
+  // print_shkey();
+  // cprintf("pid : %d\n", proc->pid);
+  if (proc->keys_associated[key] == 0) {
+    // no shared mem for the key
+    // check if any other process already has shared mem for key
+    if (shkey[key].num_proc == 0) {
+      // no previous process associated with key
+      // allocate new pages and map
+      // cprintf("in case 1\n");
+      int i;
+      void *addr;
+      // get the top address from proc
+      void *temp_top = proc->shmem_top_addr;
+      for (i = 0; i < num_pages; ++i) {
+        if((addr = kalloc()) == 0) 
+          panic("shmgetat failed");
+        // allocation success now map
+        shkey[key].physical_addr[i] = (void*)addr;
+        temp_top -= PGSIZE;
+        mappages(proc->pgdir, temp_top, PGSIZE, PADDR(addr), PTE_W|PTE_U);
+      }
+      // change shkey struct and proc struct
+      shkey[key].shkey_num_pages = num_pages;
+      shkey[key].num_proc++;
+      //update proc here
+      proc->shmem_top_addr = temp_top;
+      proc->virtual_addr[key] = temp_top;
+      proc->keys_associated[key] = 1;
+      // print_shkey();
+      return temp_top;
+
+    } else {
+      // already some other process using shared mem
+      // do not allocate just map amd return virtual address
+      // cprintf("in case 2 in else where key has some process, but current process doesnt have mem for the key\n");
+      int i;
+      // get the top address from proc
+      void *temp_top = proc->shmem_top_addr;
+      for (i = 0; i < shkey[key].shkey_num_pages; ++i) {
+        temp_top -= PGSIZE;
+        mappages(proc->pgdir, temp_top, PGSIZE, PADDR(shkey[key].physical_addr[i]), PTE_W|PTE_U);
+      }
+      // change shkey struct and proc struct
+      // cprintf("case 2 after for loop");
+      shkey[key].num_proc++;
+      //update proc here
+      proc->shmem_top_addr = temp_top;
+      proc->virtual_addr[key] = temp_top;
+      proc->keys_associated[key] = 1;
+      // print_shkey();
+      return temp_top;
+
+    }
+    
+  } else {
+    // cprintf("in case 3\n");
+    // process alredy using shared pages
+    // do not allocate; do not map ; return virtual addr for key from proc
+    // print_shkey();
+    return proc->virtual_addr[key];
+
+  }
+
+// cprintf("in no case\n");
+// print_shkey();
+return NULL;
+
+}
+
+int
+shm_refcount_helper(int key)
+{
+  // cprintf("In shm_refcount_helper");
+  return shkey[key].num_proc; 
+}
+
+void
+increment_num_proc(int key) {
+  shkey[key].num_proc++;
 }

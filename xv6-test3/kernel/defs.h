@@ -154,16 +154,6 @@ void            uartintr(void);
 void            uartputc(int);
 
 // vm.c
-// UPDATE: defs.h: declaration
-#define SHMEM_PAGES (4)
-int             shmem_counts[SHMEM_PAGES];
-void*           shmem_addrs[SHMEM_PAGES];
-int             shmem_fork(struct proc*);
-void            shmem_clean(struct proc*);
-void            shmem_init(void);
-void*           shmem_access(int);
-int             shmem_count(int);
-
 void            seginit(void);
 void            kvmalloc(void);
 void            vmenable(void);
@@ -178,6 +168,10 @@ pde_t*          copyuvm(pde_t*, uint);
 void            switchuvm(struct proc*);
 void            switchkvm(void);
 int             copyout(pde_t*, uint, void*, uint);
+void*			shmgetat_helper(int key, int num_pages);
+int 			shm_refcount_helper(int key);
+void 			shmeminit(void);
+void 			increment_num_proc(int key);
 
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))

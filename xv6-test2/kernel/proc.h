@@ -63,7 +63,10 @@ enum procstate { UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 struct proc {
   uint sz;                     // Size of process memory (bytes)
   pde_t* pgdir;                // Page table
-  int shmem[SHMEMMAX];         //a shared memory is used or not
+  int shmem[SHMEMMAX];         // Whether a shared memory is been used
+  int shmemcount;              // Count of shared pages
+  void* shmemaddr[SHMEMMAX];   // Shared memory address
+  void* shmemvaddr[SHMEMMAX];  // Map of page number to virtual address
   char *kstack;                // Bottom of kernel stack for this process
   enum procstate state;        // Process state
   volatile int pid;            // Process ID

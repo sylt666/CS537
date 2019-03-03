@@ -29,5 +29,5 @@ SYSCALL(getpid)
 SYSCALL(sbrk)
 SYSCALL(sleep)
 SYSCALL(uptime)
-SYSCALL(shmem_access) // UPDATE
-SYSCALL(shmem_count)
+SYSCALL(shmgetat)
+SYSCALL(shm_refcount)

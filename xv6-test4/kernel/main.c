@@ -57,13 +57,15 @@ mainc(void)
   if(!ismp)
     timerinit();   // uniprocessor timer
   bootothers();    // start other processors
-  shmem_ginit();   // init global shared memory struct
 
   // Finish setting up this processor in
   cinit();
   sti();           // enable inturrupts
   userinit();      // first user process
+  shmeminit();     // test function
+  shm_init();      // Initialise shared memory
   scheduler();     // start running processes
+  
 }
 
 // common cpu init code

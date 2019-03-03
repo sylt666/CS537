@@ -45,6 +45,15 @@ allocproc(void)
 found:
   p->state = EMBRYO;
   p->pid = nextpid++;
+  // initialize the shared mem variables
+  // cprintf("\n----------initialize shared mem var in allocproc for pid %d --------------------\n", p->pid);
+  int i;
+  for (i = 0; i < 8; ++i)
+  {
+    p->keys_associated[i] = 0;
+    p->virtual_addr[i] = (void*)USERTOP;
+  }
+  p->shmem_top_addr = (void*)USERTOP;
   release(&ptable.lock);
 
   // Allocate kernel stack if possible.
@@ -107,18 +116,15 @@ int
 growproc(int n)
 {
   uint sz;
-
+  
   sz = proc->sz;
-
-  // UPDATE: do not go over shared pages
   if(n > 0){
-      if(sz + n > proc->ssz || (sz = allocuvm(proc->pgdir, sz, sz + n)) == 0)
-          return -1;
+    if((sz = allocuvm(proc->pgdir, sz, sz + n)) == 0)
+      return -1;
   } else if(n < 0){
-      if((sz = deallocuvm(proc->pgdir, sz, sz + n)) == 0)
-          return -1;
+    if((sz = deallocuvm(proc->pgdir, sz, sz + n)) == 0)
+      return -1;
   }
-
   proc->sz = sz;
   switchuvm(proc);
   return 0;
@@ -144,11 +150,6 @@ fork(void)
     np->state = UNUSED;
     return -1;
   }
-
-  // UPDATE: fork: store shared page bottom, mapping, ptes
-  if(shmem_fork(np) < 0) return -1;
-  np->ssz = proc->ssz; 
-
   np->sz = proc->sz;
   np->parent = proc;
   *np->tf = *proc->tf;
@@ -160,7 +161,16 @@ fork(void)
     if(proc->ofile[i])
       np->ofile[i] = filedup(proc->ofile[i]);
   np->cwd = idup(proc->cwd);
- 
+  
+  // deal with shared pages
+  for (i = 0; i < 8; ++i)
+  {
+    if (proc->keys_associated[i] == 1)
+    {
+      increment_num_proc(i);
+    }
+  }
+
   pid = np->pid;
   np->state = RUNNABLE;
   safestrcpy(np->name, proc->name, sizeof(proc->name));
@@ -231,17 +241,13 @@ wait(void)
         pid = p->pid;
         kfree(p->kstack);
         p->kstack = 0;
-
-        // UPDATE: wait: top 4 pages should not be freed, instead decrease ref count
-        shmem_clean(p);
-        freevm(p->pgdir); 
-
+        freevm(p->pgdir);
         p->state = UNUSED;
         p->pid = 0;
         p->parent = 0;
         p->name[0] = 0;
         p->killed = 0;
-
+        // TO DO clean shred mem vars
         release(&ptable.lock);
         return pid;
       }
@@ -455,3 +461,5 @@ procdump(void)
     cprintf("\n");
   }
 }
+
+
