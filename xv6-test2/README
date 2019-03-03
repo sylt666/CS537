@@ -1,0 +1,21 @@
+##This is one of the project of Operating System course and it basically has two parts.
+
+###Part 1
+We need to change the virtual memory space of user processes so that the address 0x0 is invalid.
+Currently, 0x0 (NULL) is a valid address for an xv6 user process. Need to change xv6 so that 
+dereferencing address 0x0 causes a page fault.
+
+for example, after the modification, following code will fail:
+
+int *p = NULL;
+*p = 10;
+
+
+
+###Part 2 
+
+In part 2, we will implement shared memory in xv6. This will be built upon part 1 code. 
+Currently, each process in xv6 has the same virtual address space, 
+but each process's virtual address space maps to disjoint sets of physical pages. 
+This prevents processes from accidentally (or intentionally) corrupting each other’s memory. 
+So we will change xv6 so that processes can share a limited number(up to four) of physical memory pages.
