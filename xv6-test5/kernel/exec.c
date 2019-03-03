@@ -11,7 +11,7 @@ exec(char *path, char **argv)
 {
   char *s, *last;
   int i, off;
-  uint argc, sz, sp, ustack[3+MAXARG+1];
+  uint argc, ch_sz, st_sz, sp, ustack[3+MAXARG+1];
   struct elfhdr elf;
   struct inode *ip;
   struct proghdr ph;
@@ -21,8 +21,7 @@ exec(char *path, char **argv)
     return -1;
   ilock(ip);
   pgdir = 0;
-  
-  //cprintf("exec called by proc pid %d \n", proc->pid);
+
   // Check ELF header
   if(readi(ip, (char*)&elf, 0, sizeof(elf)) < sizeof(elf))
     goto bad;
@@ -32,10 +31,8 @@ exec(char *path, char **argv)
   if((pgdir = setupkvm()) == 0)
     goto bad;
 
-  // Load program into memory, omit first page.
-  sz = PGSIZE;
-  //cprintf("loading code from addr %x \n", sz);
- 
+  // Load program into memory.
+  ch_sz = PGSIZE;
   for(i=0, off=elf.phoff; i<elf.phnum; i++, off+=sizeof(ph)){
     if(readi(ip, (char*)&ph, off, sizeof(ph)) != sizeof(ph))
       goto bad;
@@ -43,36 +40,27 @@ exec(char *path, char **argv)
       continue;
     if(ph.memsz < ph.filesz)
       goto bad;
-    if((sz = allocuvm(pgdir, sz, ph.va + ph.memsz)) == 0)
+
+		//allocate virtual memory and map it to physical memory for segment
+    if((ch_sz = allocuvm(pgdir, ch_sz, ph.va + ph.memsz)) == 0)
       goto bad;
-    if(loaduvm(pgdir, (char*)ph.va, ip, ph.offset, ph.filesz) < 0)
+
+    if(loaduvm(pgdir, (char*)ph.va , ip, ph.offset, ph.filesz) < 0)
       goto bad;
   }
   iunlockput(ip);
   ip = 0;
+	ch_sz = PGROUNDUP(ch_sz);
 
-  sz = PGROUNDUP(sz);
-  
-  proc->code_sz = sz;
+  // Allocate a one-page stack at the next page boundary
 
-  sz += PGSIZE; // leave one page unmapped in between the code and the heap.
-  
-
-  //cprintf("code till addr %x \n", sz);
-  
-  // Allocating last page of user space as Stack.
-  sp = USERTOP - PGSIZE;
-  //sp = sz;
-  // 1-page below stack will be guard page.
-  proc->guard_page = sp - PGSIZE;
-
-  if((sp = allocuvm(pgdir, sp, sp + PGSIZE)) == 0)
+	//UPDATE
+  st_sz = USERTOP-PGSIZE;
+  if((st_sz = allocuvm(pgdir, st_sz, st_sz + PGSIZE)) == 0)
     goto bad;
 
   // Push argument strings, prepare rest of stack in ustack.
-  //sz = sp;
-  //cprintf("stack begins at addr %x \n", sp);
-  
+  sp = st_sz;
   for(argc = 0; argv[argc]; argc++) {
     if(argc >= MAXARG)
       goto bad;
@@ -101,13 +89,11 @@ exec(char *path, char **argv)
   // Commit to the user image.
   oldpgdir = proc->pgdir;
   proc->pgdir = pgdir;
-  proc->sz = sz;
+	proc->start = PGSIZE;
+  proc->ch_sz = ch_sz;
+	proc->st_sz = PGSIZE;
   proc->tf->eip = elf.entry;  // main
   proc->tf->esp = sp;
-  proc->sp_pages = 1; //allocated one page for stack
-  proc->max_stack_pages = 0; //not applicable for exec
-  //cprintf("proc %s, pid %d, esp %x \n", proc->name, proc->pid, proc->tf->esp);
-  //cprintf("proc %s, pid %d, sz %x, code_sz %x, esp %x \n", proc->name, proc->pid, proc->sz, proc->code_sz, proc->tf->esp);
   switchuvm(proc);
   freevm(oldpgdir);
 

@@ -368,40 +368,6 @@ sys_exec(void)
 }
 
 int
-sys_new_exec(void)
-{
-  char *path, *argv[MAXARG];
-  int max_stack_pages;
-  int i;
-  uint uargv, uarg;
-
-  if(argstr(0, &path) < 0 || argint(1, &max_stack_pages) <0 || argint(2, (int*)&uargv) < 0){
-    return -1;
-  }
-  memset(argv, 0, sizeof(argv));
-  for(i=0;; i++){
-    if(i >= NELEM(argv))
-      return -1;
-    if(fetchint(proc, uargv+4*i, (int*)&uarg) < 0)
-      return -1;
-    if(uarg == 0){
-      argv[i] = 0;
-      break;
-    }
-    if(fetchstr(proc, uarg, &argv[i]) < 0)
-      return -1;
-  }
-  cprintf("new exec -- path = %s, max-stack-pages = %d , argv[0] = %s \n", path, max_stack_pages, argv[0]);
-  //leverage same code as exec
-  if (exec(path, argv) == 0) {
-    proc->max_stack_pages = max_stack_pages;
-    cprintf("about to return 0 \n");
-    return 0;
-  }
-  return -1;
-}
-
-int
 sys_pipe(void)
 {
   int *fd;

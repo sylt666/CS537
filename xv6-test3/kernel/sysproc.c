@@ -88,27 +88,3 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
-
-int
-sys_shmgetat(void)
-{
-  int key, num_pages;
-  void *addr;
-  if(argint(0, (void *)&key) < 0)
-    return -1;
-  if(argint(1, (void *)&num_pages) < 0)
-    return -1;
-  addr = shmgetat_helper(key, num_pages);
-  // TO DO CHANGE THIS LATER ASK TA
-  return (int)addr;
-}
-
-int
-sys_shm_refcount(void)
-{
-  int key;
-  
-  if(argint(0, (void *)&key) < 0)
-    return -1;
-  return shm_refcount_helper(key);
-}

@@ -10,11 +10,8 @@ USER_PROGS := \
 	ln\
 	ls\
 	mkdir\
-	new_exec\
-	null\
 	rm\
 	sh\
-	stack_test\
 	stressfs\
 	tester\
 	usertests\

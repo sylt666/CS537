@@ -15,6 +15,7 @@ USER_PROGS := \
 	stressfs\
 	tester\
 	usertests\
+	null\
 	wc\
 	zombie
 
@@ -73,7 +74,7 @@ USER_LDFLAGS += --omagic
 USER_LDFLAGS += --entry=main
 
 # location in memory where the program will be loaded
-USER_LDFLAGS += --section-start=.text=0x0
+USER_LDFLAGS += --section-start=.text=0x2000
 
 user/bin:
 	mkdir -p user/bin
@@ -102,4 +103,3 @@ user/%.d: user/%.c
 user/%.d: user/%.S
 	$(CC) $(CPPFLAGS) $(USER_CPPFLAGS) $(ASFLAGS) $(USER_ASFLAGS) \
 		-M -MG $< -MF $@ -MT $@ -MT $(<:.S=.o)
-

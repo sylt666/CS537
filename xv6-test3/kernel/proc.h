@@ -62,6 +62,7 @@ enum procstate { UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 // Per-process state
 struct proc {
   uint sz;                     // Size of process memory (bytes)
+  uint stack_head;
   pde_t* pgdir;                // Page table
   char *kstack;                // Bottom of kernel stack for this process
   enum procstate state;        // Process state
@@ -74,10 +75,6 @@ struct proc {
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
-  int keys_associated[8];      // shared pages keys
-  void* shmem_top_addr;        // top of shared mem addrss space
-  void* virtual_addr[8];       // virtual address corresponding to shared page
-
 };
 
 // Process memory is laid out contiguously, low addresses first:

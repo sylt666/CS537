@@ -45,15 +45,6 @@ allocproc(void)
 found:
   p->state = EMBRYO;
   p->pid = nextpid++;
-  // initialize the shared mem variables
-  // cprintf("\n----------initialize shared mem var in allocproc for pid %d --------------------\n", p->pid);
-  int i;
-  for (i = 0; i < 8; ++i)
-  {
-    p->keys_associated[i] = 0;
-    p->virtual_addr[i] = (void*)USERTOP;
-  }
-  p->shmem_top_addr = (void*)USERTOP;
   release(&ptable.lock);
 
   // Allocate kernel stack if possible.
@@ -62,11 +53,11 @@ found:
     return 0;
   }
   sp = p->kstack + KSTACKSIZE;
-  
+
   // Leave room for trap frame.
   sp -= sizeof *p->tf;
   p->tf = (struct trapframe*)sp;
-  
+
   // Set up new context to start executing at forkret,
   // which returns to trapret.
   sp -= 4;
@@ -86,22 +77,22 @@ userinit(void)
 {
   struct proc *p;
   extern char _binary_initcode_start[], _binary_initcode_size[];
-  
+
   p = allocproc();
   acquire(&ptable.lock);
   initproc = p;
   if((p->pgdir = setupkvm()) == 0)
     panic("userinit: out of memory?");
   inituvm(p->pgdir, _binary_initcode_start, (int)_binary_initcode_size);
-  p->sz = PGSIZE;
+  p->sz = 3*PGSIZE;
   memset(p->tf, 0, sizeof(*p->tf));
   p->tf->cs = (SEG_UCODE << 3) | DPL_USER;
   p->tf->ds = (SEG_UDATA << 3) | DPL_USER;
   p->tf->es = p->tf->ds;
   p->tf->ss = p->tf->ds;
   p->tf->eflags = FL_IF;
-  p->tf->esp = PGSIZE;
-  p->tf->eip = 0;  // beginning of initcode.S
+  p->tf->esp = p->sz;   //where code part ends,1 page of code program
+  p->tf->eip = 0x2000;  // beginning of initcode.S
 
   safestrcpy(p->name, "initcode", sizeof(p->name));
   p->cwd = namei("/");
@@ -116,7 +107,8 @@ int
 growproc(int n)
 {
   uint sz;
-  
+  if((int)(proc->stack_head-proc->sz-n)<5*PGSIZE)
+  return -1;
   sz = proc->sz;
   if(n > 0){
     if((sz = allocuvm(proc->pgdir, sz, sz + n)) == 0)
@@ -128,6 +120,27 @@ growproc(int n)
   proc->sz = sz;
   switchuvm(proc);
   return 0;
+}
+//grow stack after check bounds,when sth traps in system call
+int
+growstack(void)
+{
+  uint newstack = rcr2();
+  if(newstack<0x2000||newstack>=USERTOP||newstack<(proc->stack_head)-PGSIZE||(newstack<(proc->sz)+5*PGSIZE&&newstack>proc->sz)) {//handle access to null space
+    cprintf("access to 0x2000||USERTOP,needs to trap\n");
+    return -1;
+  }
+  if(proc->stack_head-proc->sz>5*PGSIZE) {
+    cprintf("enough space for growing stack\n");
+    if(0!=allocuvm(proc->pgdir, proc->stack_head-PGSIZE, proc->stack_head))
+    {
+      cprintf("grow stack successfully\n");
+      proc->stack_head=proc->stack_head-PGSIZE;
+      //switchuvm(proc);
+      return 0;
+    }
+  } 
+  return -1;
 }
 
 // Create a new process copying p as the parent.
@@ -144,13 +157,14 @@ fork(void)
     return -1;
 
   // Copy process state from p.
-  if((np->pgdir = copyuvm(proc->pgdir, proc->sz)) == 0){
+  if((np->pgdir = copyuvm(proc->pgdir, proc->sz, proc->stack_head)) == 0){
     kfree(np->kstack);
     np->kstack = 0;
     np->state = UNUSED;
     return -1;
   }
   np->sz = proc->sz;
+  np->stack_head = proc->stack_head;
   np->parent = proc;
   *np->tf = *proc->tf;
 
@@ -161,15 +175,6 @@ fork(void)
     if(proc->ofile[i])
       np->ofile[i] = filedup(proc->ofile[i]);
   np->cwd = idup(proc->cwd);
-  
-  // deal with shared pages
-  for (i = 0; i < 8; ++i)
-  {
-    if (proc->keys_associated[i] == 1)
-    {
-      increment_num_proc(i);
-    }
-  }
 
   pid = np->pid;
   np->state = RUNNABLE;
@@ -247,7 +252,6 @@ wait(void)
         p->parent = 0;
         p->name[0] = 0;
         p->killed = 0;
-        // TO DO clean shred mem vars
         release(&ptable.lock);
         return pid;
       }
@@ -341,7 +345,7 @@ forkret(void)
 {
   // Still holding ptable.lock from scheduler.
   release(&ptable.lock);
-  
+
   // Return to "caller", actually trapret (see allocproc).
 }
 
@@ -444,7 +448,7 @@ procdump(void)
   struct proc *p;
   char *state;
   uint pc[10];
-  
+
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
     if(p->state == UNUSED)
       continue;
@@ -461,5 +465,3 @@ procdump(void)
     cprintf("\n");
   }
 }
-
-

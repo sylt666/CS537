@@ -10,7 +10,6 @@ char *argv[] = { "sh", 0 };
 int
 main(void)
 {
-  printf(1, "00 inside init \n");
   int pid, wpid;
 
   if(open("console", O_RDWR) < 0){
@@ -19,6 +18,7 @@ main(void)
   }
   dup(0);  // stdout
   dup(0);  // stderr
+
   for(;;){
     printf(1, "init: starting sh\n");
     pid = fork();

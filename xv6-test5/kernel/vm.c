@@ -40,7 +40,7 @@ seginit(void)
 
   lgdt(c->gdt, sizeof(c->gdt));
   loadgs(SEG_KCPU << 3);
-  
+
   // Initialize cpu-local storage.
   cpu = c;
   proc = 0;
@@ -64,7 +64,7 @@ walkpgdir(pde_t *pgdir, const void *va, int create)
     // Make sure all those PTE_P bits are zero.
     memset(pgtab, 0, PGSIZE);
     // The permissions here are overly generous, but they can
-    // be further restricted by the permissions in the page table 
+    // be further restricted by the permissions in the page table
     // entries, if necessary.
     *pde = PADDR(pgtab) | PTE_P | PTE_W | PTE_U;
   }
@@ -79,7 +79,7 @@ mappages(pde_t *pgdir, void *la, uint size, uint pa, int perm)
 {
   char *a, *last;
   pte_t *pte;
-  
+
   a = PGROUNDDOWN(la);
   last = PGROUNDDOWN(la + size - 1);
   for(;;){
@@ -104,7 +104,7 @@ mappages(pde_t *pgdir, void *la, uint size, uint pa, int perm)
 // A user process uses the same page table as the kernel; the
 // page protection bits prevent it from using anything other
 // than its memory.
-// 
+//
 // setupkvm() and exec() set up every page table like this:
 //   0..640K          : user memory (text, data, stack, heap)
 //   640K..1M         : mapped direct (for IO space)
@@ -190,7 +190,7 @@ void
 inituvm(pde_t *pgdir, char *init, uint sz)
 {
   char *mem;
-  
+
   if(sz >= PGSIZE)
     panic("inituvm: more than a page");
   mem = kalloc();
@@ -235,17 +235,16 @@ allocuvm(pde_t *pgdir, uint oldsz, uint newsz)
     return 0;
   if(newsz < oldsz)
     return oldsz;
-
   a = PGROUNDUP(oldsz);
   for(; a < newsz; a += PGSIZE){
-    mem = kalloc();
+    mem = kalloc();		//mem contains address of allocated page
     if(mem == 0){
       cprintf("allocuvm out of memory\n");
       deallocuvm(pgdir, newsz, oldsz);
       return 0;
     }
     memset(mem, 0, PGSIZE);
-    mappages(pgdir, (char*)a, PGSIZE, PADDR(mem), PTE_W|PTE_U);
+    mappages(pgdir, (char*)a, PGSIZE, PADDR(mem), PTE_W|PTE_U);		//map pa(mem) to va(a)
   }
   return newsz;
 }
@@ -297,21 +296,15 @@ freevm(pde_t *pgdir)
 // Given a parent process's page table, create a copy
 // of it for a child.
 pde_t*
-copyuvm(pde_t *pgdir, uint sz)
+copyuvm(pde_t *pgdir, uint ch_sz, uint st_sz)
 {
   pde_t *d;
   pte_t *pte;
   uint pa, i;
   char *mem;
-
   if((d = setupkvm()) == 0)
     return 0;
-  //cprintf("copyuvm :: sz = %x \n", sz); 
-  for(i = PGSIZE; i < sz; i += PGSIZE){
-    
-    if (i == proc->code_sz)
-      continue;
-    
+  for(i = PGSIZE; i < ch_sz; i += PGSIZE){
     if((pte = walkpgdir(pgdir, (void*)i, 0)) == 0)
       panic("copyuvm: pte should exist");
     if(!(*pte & PTE_P))
@@ -323,10 +316,7 @@ copyuvm(pde_t *pgdir, uint sz)
     if(mappages(d, (void*)i, PGSIZE, PADDR(mem), PTE_W|PTE_U) < 0)
       goto bad;
   }
-  
-  
-  uint j;
-  for(i = USERTOP-(proc->sp_pages*PGSIZE), j = 0; j < proc->sp_pages ; j++,i+=PGSIZE ) {
+	for(i = USERTOP-st_sz; i < USERTOP; i += PGSIZE){
     if((pte = walkpgdir(pgdir, (void*)i, 0)) == 0)
       panic("copyuvm: pte should exist");
     if(!(*pte & PTE_P))
@@ -338,7 +328,6 @@ copyuvm(pde_t *pgdir, uint sz)
     if(mappages(d, (void*)i, PGSIZE, PADDR(mem), PTE_W|PTE_U) < 0)
       goto bad;
   }
-  
   return d;
 
 bad:
@@ -368,7 +357,7 @@ copyout(pde_t *pgdir, uint va, void *p, uint len)
 {
   char *buf, *pa0;
   uint n, va0;
-  
+
   buf = (char*)p;
   while(len > 0){
     va0 = (uint)PGROUNDDOWN(va);
@@ -384,31 +373,4 @@ copyout(pde_t *pgdir, uint va, void *p, uint len)
     va = va0 + PGSIZE;
   }
   return 0;
-}
-
-int grow_stack() {
-  pde_t* pgdir;
-  uint newsp;
-  pgdir = proc->pgdir;
-  //cprintf("need to grow the stack for proc %s , pid %d by 1 page \n", proc->name, proc->pid);
-  //check if there is space to grow
-  if (proc->sz >= (proc->guard_page - PGSIZE))
-    goto bad;
-  
-  if (proc->max_stack_pages != 0) {
-    if (proc->sp_pages == proc->max_stack_pages) {
-      cprintf("Proc %s, pid %d, Stack pages already at max. can't grow more. Failing\n", proc->name, proc->pid);
-      goto bad;
-    }
-  }
-
-  newsp = proc->guard_page;
-  proc->guard_page -= PGSIZE; //move the guard page one pg lower.
-  if ((newsp = allocuvm (pgdir, newsp, newsp + PGSIZE) == 0))
-      goto bad;
-  proc->sp_pages++;
-  //cprintf("stack grown for pid %d, new end addr for stack = %x \n", proc->pid, proc->guard_page + PGSIZE);
-  return 0;
-bad:
-  return -1;
 }

@@ -45,10 +45,6 @@ allocproc(void)
 found:
   p->state = EMBRYO;
   p->pid = nextpid++;
-  p->sp_pages = 0;
-  p->guard_page = 0;
-  p->max_stack_pages = 0;
-  p->code_sz = 2*PGSIZE; // expect atleast one page of code.
   release(&ptable.lock);
 
   // Allocate kernel stack if possible.
@@ -57,11 +53,11 @@ found:
     return 0;
   }
   sp = p->kstack + KSTACKSIZE;
-  
+
   // Leave room for trap frame.
   sp -= sizeof *p->tf;
   p->tf = (struct trapframe*)sp;
-  
+
   // Set up new context to start executing at forkret,
   // which returns to trapret.
   sp -= 4;
@@ -71,7 +67,6 @@ found:
   p->context = (struct context*)sp;
   memset(p->context, 0, sizeof *p->context);
   p->context->eip = (uint)forkret;
-
   return p;
 }
 
@@ -81,14 +76,14 @@ userinit(void)
 {
   struct proc *p;
   extern char _binary_initcode_start[], _binary_initcode_size[];
-  
+
   p = allocproc();
   acquire(&ptable.lock);
   initproc = p;
   if((p->pgdir = setupkvm()) == 0)
     panic("userinit: out of memory?");
   inituvm(p->pgdir, _binary_initcode_start, (int)_binary_initcode_size);
-  p->sz = PGSIZE;
+  p->ch_sz = PGSIZE;
   memset(p->tf, 0, sizeof(*p->tf));
   p->tf->cs = (SEG_UCODE << 3) | DPL_USER;
   p->tf->ds = (SEG_UDATA << 3) | DPL_USER;
@@ -96,7 +91,6 @@ userinit(void)
   p->tf->ss = p->tf->ds;
   p->tf->eflags = FL_IF;
   p->tf->esp = PGSIZE;
-  //cprintf("initcode esp = %x \n", p->tf->esp);
   p->tf->eip = 0;  // beginning of initcode.S
 
   safestrcpy(p->name, "initcode", sizeof(p->name));
@@ -111,26 +105,16 @@ userinit(void)
 int
 growproc(int n)
 {
-  uint sz;
-  
-  sz = proc->sz;
-  
-  if (sz > proc->guard_page) 
-    return -1; //sz cannot cross into guard page.
-  if (sz == proc->guard_page && n > 0) 
-    return -1;
-  if (sz < proc->guard_page && (sz+n) > proc->guard_page)
-    return -1; //cannot allow growth into the guard page. 
-
+  uint ch_sz;
+  ch_sz = proc->ch_sz;
   if(n > 0){
-    if((sz = allocuvm(proc->pgdir, sz, sz + n)) == 0)
+    if((ch_sz = allocuvm(proc->pgdir, ch_sz, ch_sz + n)) == 0)
       return -1;
   } else if(n < 0){
-    if((sz = deallocuvm(proc->pgdir, sz, sz + n)) == 0)
+    if((ch_sz = deallocuvm(proc->pgdir, ch_sz, ch_sz + n)) == 0)
       return -1;
   }
-  proc->sz = sz;
-  //cprintf("growproc : proc %s pid %d, sz = %x, guard = %x \n", proc->name, proc->pid, proc->sz, proc->guard_page);
+  proc->ch_sz = ch_sz;
   switchuvm(proc);
   return 0;
 }
@@ -144,25 +128,22 @@ fork(void)
   int i, pid;
   struct proc *np;
 
-  //cprintf("fork called by pid %d, %s \n", proc->pid, proc->name);
   // Allocate process.
   if((np = allocproc()) == 0)
     return -1;
 
   // Copy process state from p.
-  if((np->pgdir = copyuvm(proc->pgdir, proc->sz)) == 0){
+  if((np->pgdir = copyuvm(proc->pgdir, proc->ch_sz, proc->st_sz)) == 0){
     kfree(np->kstack);
     np->kstack = 0;
     np->state = UNUSED;
     return -1;
   }
-  np->sz = proc->sz;
-  np->code_sz = proc->code_sz;
+  np->ch_sz = proc->ch_sz;
+	np->st_sz = proc->st_sz;
+	np->start = proc->start;
   np->parent = proc;
   *np->tf = *proc->tf;
-  np->sp_pages = proc->sp_pages;
-  np->max_stack_pages = proc->max_stack_pages;
-  np->guard_page = proc->guard_page;
 
   // Clear %eax so that fork returns 0 in the child.
   np->tf->eax = 0;
@@ -171,7 +152,7 @@ fork(void)
     if(proc->ofile[i])
       np->ofile[i] = filedup(proc->ofile[i]);
   np->cwd = idup(proc->cwd);
- 
+
   pid = np->pid;
   np->state = RUNNABLE;
   safestrcpy(np->name, proc->name, sizeof(proc->name));
@@ -341,7 +322,7 @@ forkret(void)
 {
   // Still holding ptable.lock from scheduler.
   release(&ptable.lock);
-  
+
   // Return to "caller", actually trapret (see allocproc).
 }
 
@@ -444,7 +425,7 @@ procdump(void)
   struct proc *p;
   char *state;
   uint pc[10];
-  
+
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
     if(p->state == UNUSED)
       continue;
@@ -461,5 +442,3 @@ procdump(void)
     cprintf("\n");
   }
 }
-
-

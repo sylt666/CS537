@@ -21,7 +21,7 @@ tvinit(void)
   for(i = 0; i < 256; i++)
     SETGATE(idt[i], 0, SEG_KCODE<<3, vectors[i], 0);
   SETGATE(idt[T_SYSCALL], 1, SEG_KCODE<<3, vectors[T_SYSCALL], DPL_USER);
-  
+
   initlock(&tickslock, "time");
 }
 
@@ -34,6 +34,31 @@ idtinit(void)
 void
 trap(struct trapframe *tf)
 {
+  //handle page fault if below current stack size, then allocate the page using allocuvm
+  if(tf->trapno == T_PGFLT){
+		int addr = rcr2();
+		if (addr >= USERTOP - (proc->st_sz))
+		{
+			exit();
+		}
+		if(addr >= USERTOP - (proc->st_sz) - PGSIZE)
+		{
+      		//update here
+			if(addr <= PGROUNDUP(proc->ch_sz) + PGSIZE)
+			{
+				exit();
+			}
+			uint st_sz = proc->st_sz;
+			pde_t* pgdir = proc->pgdir;
+			if((st_sz = allocuvm(pgdir, USERTOP-st_sz-PGSIZE, USERTOP-st_sz)) == 0)
+			{
+				exit();
+			}
+			proc->st_sz += PGSIZE;
+			return;
+		}
+  }
+
   if(tf->trapno == T_SYSCALL){
     if(proc->killed)
       exit();
@@ -43,20 +68,6 @@ trap(struct trapframe *tf)
       exit();
     return;
   }
- if(tf->trapno == T_PGFLT) {
-   //cprintf("Proc %s, pid %d - need to handle page fault at addr = %x\n", proc->name, proc->pid, rcr2() );
-   //first check if the addr lies one page below stack. 
-   // addr should lie outside the heap and should be within one page of stack
-   uint addr = rcr2();
-   if (addr >= proc->sz && (addr < USERTOP - proc->sp_pages*PGSIZE) && (addr >= USERTOP - (proc->sp_pages+1)*PGSIZE)) {
-     //need to grow stack
-     cprintf("need to grow stack! \n");
-     if (!grow_stack()) {
-       cprintf("stack grown \n");
-       return;
-     }
-   }
- }
 
   switch(tf->trapno){
   case T_IRQ0 + IRQ_TIMER:
@@ -89,7 +100,7 @@ trap(struct trapframe *tf)
             cpu->id, tf->cs, tf->eip);
     lapiceoi();
     break;
-   
+
   default:
     if(proc == 0 || (tf->cs&3) == 0){
       // In kernel, it must be our mistake.
@@ -100,13 +111,13 @@ trap(struct trapframe *tf)
     // In user space, assume process misbehaved.
     cprintf("pid %d %s: trap %d err %d on cpu %d "
             "eip 0x%x addr 0x%x--kill proc\n",
-            proc->pid, proc->name, tf->trapno, tf->err, cpu->id, tf->eip, 
+            proc->pid, proc->name, tf->trapno, tf->err, cpu->id, tf->eip,
             rcr2());
     proc->killed = 1;
   }
 
   // Force process exit if it has been killed and is in user space.
-  // (If it is still executing in the kernel, let it keep running 
+  // (If it is still executing in the kernel, let it keep running
   // until it gets to the regular system call return.)
   if(proc && proc->killed && (tf->cs&3) == DPL_USER)
     exit();
