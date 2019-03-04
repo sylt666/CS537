@@ -10,10 +10,6 @@ extern char data[];  // defined in data.S
 
 static pde_t *kpgdir;  // for use in scheduler()
 
-#define SHMEM_PAGES (4)
-int shmemCount[SHMEM_PAGES];
-void* shmem_addr[SHMEM_PAGES];
-
 // Allocate one page table for the machine for the kernel address
 // space for scheduler processes.
 void
@@ -128,7 +124,7 @@ static struct kmap {
   void *e;
   int perm;
 } kmap[] = {
-  {(void*)USERTOP,    (void*)0x100000, PTE_W},  // I/O space
+  {(void*)USERTOP,    (void*)0x100000, PTE_W},  // I/O space TODO Change here to reflect that since USERTOP changed, This should remain same
   {(void*)0x100000,   data,            0    },  // kernel text, rodata
   {data,              (void*)PHYSTOP,  PTE_W},  // kernel data, memory
   {(void*)0xFE000000, 0,               PTE_W},  // device mappings
@@ -199,7 +195,7 @@ inituvm(pde_t *pgdir, char *init, uint sz)
     panic("inituvm: more than a page");
   mem = kalloc();
   memset(mem, 0, PGSIZE);
-  mappages(pgdir, (void*) PGSIZE, PGSIZE, PADDR(mem), PTE_W|PTE_U);
+  mappages(pgdir, 0, PGSIZE, PADDR(mem), PTE_W|PTE_U);
   memmove(mem, init, sz);
 }
 
@@ -235,7 +231,7 @@ allocuvm(pde_t *pgdir, uint oldsz, uint newsz)
   char *mem;
   uint a;
 
-  if(newsz > USERTOP)
+  if(newsz > proc->current_shared_pages_top)
     return 0;
   if(newsz < oldsz)
     return oldsz;
@@ -290,7 +286,7 @@ freevm(pde_t *pgdir)
 
   if(pgdir == 0)
     panic("freevm: no pgdir");
-  deallocuvm(pgdir, USERTOP, 0);
+  deallocuvm(pgdir, proc->current_shared_pages_top, 0);  // TODO Change here for not freeing the shared pages 
   for(i = 0; i < NPDENTRIES; i++){
     if(pgdir[i] & PTE_P)
       kfree((char*)PTE_ADDR(pgdir[i]));
@@ -307,10 +303,10 @@ copyuvm(pde_t *pgdir, uint sz)
   pte_t *pte;
   uint pa, i;
   char *mem;
-  int j;
+
   if((d = setupkvm()) == 0)
     return 0;
-  for(i = PGSIZE; i < sz; i += PGSIZE){
+  for(i = 0; i < sz; i += PGSIZE){
     if((pte = walkpgdir(pgdir, (void*)i, 0)) == 0)
       panic("copyuvm: pte should exist");
     if(!(*pte & PTE_P))
@@ -322,14 +318,8 @@ copyuvm(pde_t *pgdir, uint sz)
     if(mappages(d, (void*)i, PGSIZE, PADDR(mem), PTE_W|PTE_U) < 0)
       goto bad;
   }
-  for(j = 0; j < 4; j++){
-    if(shmemCount[j] == 0)
-      continue;
-    if(mappages(d, (void*) proc->pageAddr[j], PGSIZE, (uint)shmem_addr[j], PTE_W|PTE_U) < 0)
-      goto bad;
-    shmemCount[j]++;
-  }
   return d;
+
 bad:
   freevm(d);
   return 0;
@@ -356,7 +346,8 @@ int
 copyout(pde_t *pgdir, uint va, void *p, uint len)
 {
   char *buf, *pa0;
-  uint n, va0; 
+  uint n, va0;
+  
   buf = (char*)p;
   while(len > 0){
     va0 = (uint)PGROUNDDOWN(va);
@@ -374,49 +365,76 @@ copyout(pde_t *pgdir, uint va, void *p, uint len)
   return 0;
 }
 
-void
-shmem_init(void)
+void* shmem_addr[MAX_KEYS][MAX_PAGES];
+int shmem_count[MAX_KEYS];
+int shmem_pages[MAX_KEYS];
+
+void shmeminit(void)
 {
+  cprintf("shmeminit\n");
   int i;
-  for(i = 0; i < SHMEM_PAGES; i++){
-    shmemCount[i] = 0;
-    if((shmem_addr[i] = kalloc()) == 0)
-      panic("shmem_init failed");
+  for (i = 0; i < MAX_KEYS; i++)
+  {
+    shmem_count[i] = 0;
+    shmem_pages[i] = 0;
+    int j;
+    for (j = 0; j< MAX_PAGES; j++)
+    {
+      shmem_addr[i][j] = NULL; 
+    }
   }
+  return;
 }
 
-void*
-shmem_access(int page_number)
-{ 
-  int vAddr;
-  if (page_number < 0 || page_number > 3)
-    return NULL;
-  if(proc->pageAddr[page_number] != 0)
-    return proc->pageAddr[page_number]; 
-  vAddr = USERTOP - (PGSIZE*(proc->pageAccesses + 1));
-  if(vAddr < 0)
-    return NULL;
-  if(proc->sz > vAddr)
-    return NULL;
-  if((mappages(proc->pgdir, (void*) vAddr, PGSIZE, (uint)shmem_addr[page_number], 
-      PTE_W|PTE_U)) < 0)
-    return NULL; 
-  proc->pageAddr[page_number] = (void*) vAddr;
-  proc->pageAccesses++;
-  proc->lowestAddr = vAddr;
-  shmemCount[page_number]++;
-  return (void*) vAddr;
-}
-
-int
-shmem_count(int page_number)
+int shm_refcount(int key)
 {
-  if (page_number < 0 || page_number > 3)
-    return -1;
-  return shmemCount[page_number]; 
+  if (key < 0 || key > 7) return -1;
+  return shmem_count[key];
 }
 
-void
-shmem_close(int page_number){
-  shmemCount[page_number]--;
+void* shmgetat(int key, int num_pages)
+{
+  struct proc* p = proc;
+  if (key < 0 || key > 7) return (void*)-1;
+  if (num_pages <= 0 || num_pages > 4) return (void*)-1;
+  if ((proc->current_shared_pages_top - num_pages*PGSIZE) < proc->sz) return (void*)-1; // TODO change this, make it dynamic
+  void* retval = NULL;
+  if (p->shmem_addr[key] == NULL)  // This process has no shared segment at this key
+  {
+    if (shmem_count[key] == 0)  // There is no shared segment globally for this key
+    {
+      // Create a shared segment globally for this key
+      int i;
+      for(i=0; i<num_pages; i++)
+      {
+        void* mem;
+        if ((mem = (void*)kalloc()) == 0)
+          return (void*)-1;
+        memset(mem, 0, PGSIZE);
+        proc->current_shared_pages_top -= PGSIZE;
+        if(mappages(proc->pgdir, (char*)(proc->current_shared_pages_top), PGSIZE, PADDR(mem), PTE_W|PTE_U) < 0) 
+          return (void*)-1;
+        shmem_addr[key][i] = mem;
+      }
+      shmem_count[key] = 1;
+      shmem_pages[key] = num_pages;
+    }
+    else  /* There is a shared segment globally for this key but, there is none
+      for this process. So attach the previous one to this process.*/ 
+    {
+      int i;
+      for(i=0; i<shmem_pages[key]; i++)
+      {
+        void* mem = shmem_addr[key][i];
+        proc->current_shared_pages_top -= PGSIZE;
+        if (mappages(proc->pgdir, (char*)(proc->current_shared_pages_top), PGSIZE, PADDR(mem), PTE_W|PTE_U) < 0)
+          return (void*)-1;
+      }
+      shmem_count[key]++;
+    }
+    proc->shmem_addr[key] = (void*)(proc->current_shared_pages_top);
+    retval = proc->shmem_addr[key];
+  }
+  else retval = proc->shmem_addr[key];  // If there is one for this process, return that virtual memory.
+  return retval; 
 }

@@ -5,7 +5,118 @@
 #include "mmu.h"
 #include "proc.h"
 #include "elf.h"
+#include "spinlock.h"
+int ref_count[8];
+int virtual_addr = USERTOP;
+// ADDED BY SRI
+static int mappages(pde_t *, void *, uint, uint, int);
+static pte_t *walkpgdir(pde_t *, const void *,int);
+int ref_count[8];
 
+int key_arr[8];
+struct share_phy_memory {
+  int num_pages;
+  char *page_ptr[4];
+};
+struct {
+  struct spinlock lock;
+  struct share_phy_memory mem[8];
+} share_table;
+
+void
+share_mem_init(void) {
+  initlock(&share_table.lock, "shmtable");
+  int i = 0;
+  for (i = 0; i < 8; i++) {
+    ref_count[i] = 0;
+    key_arr[i] = 0;
+    share_table.mem[i].num_pages = 0;
+  }
+}
+// ADDED BY SRI
+void* shmgetat(int key, int num_pages) {
+ 
+//Check arguments legal or not
+  if (key < 0 || key > 7) {
+    return (void *) -1;
+  }
+  if (key_arr[key] == 0) {
+  if (num_pages < 1 || num_pages > 4) {
+    return (void*) -1;
+  }
+}
+//Check proc->shared_mem[key]
+  if (proc->shared_mem[key] != (char*)-1) {
+   return proc->va[key];
+  }
+
+//Check physical memory (num_pages)
+  int flag = 0;
+  int i;
+  char *mem_ptr[num_pages];
+ // When physical memory has already been allocated
+ for (i = 0; i < num_pages; i++) {
+   if (share_table.mem[key].page_ptr[i] != NULL) {
+    virtual_addr = virtual_addr - PGSIZE;    
+    proc->va[key] = (void*)virtual_addr;
+    proc->vaddr = virtual_addr;
+    mappages(proc->pgdir, proc->va[key], PGSIZE, PADDR(share_table.mem[key].page_ptr[i]), PTE_W|PTE_U);
+    flag = 1; 
+   }
+}
+  proc->keys[key] = 1;
+  key_arr[key] = 1;
+
+//if not allocate for physical memory  
+if (flag == 0) { 
+   int j = 0; 
+   for (j = 0; j < num_pages; j++) {
+     mem_ptr[j] = kalloc();
+     memset(mem_ptr[j], 0, PGSIZE);
+     share_table.mem[key].page_ptr[j] = mem_ptr[j];
+     virtual_addr = virtual_addr - PGSIZE;     
+     proc->va[key] = (void*)virtual_addr;
+     proc->vaddr = virtual_addr;
+     if (virtual_addr <= proc->sz) {
+       return (void*) -1;
+     }
+    mappages(proc->pgdir,proc->va[key], PGSIZE, PADDR(mem_ptr[j]), PTE_W|PTE_U);
+   }
+   share_table.mem[key].num_pages = num_pages;
+   ref_count[key] ++;
+
+// Set process pointer for shared memory(virtual address)
+   proc->shared_mem[key] = (char*)PADDR(mem_ptr[j]); 
+ }
+ return proc->va[key];
+}
+// Used to inc ref count
+void inc_refcount(int key) {
+  if (key >= 0 && key <=7) {
+   ref_count[key]++;
+  }
+}
+
+// Used to dec ref count
+void dec_refcount(int key) {
+  if (key >= 0 && key <=7) {
+  ref_count[key]++;
+  if (ref_count[key] == 0){
+    share_table.mem[key].num_pages = 0;
+    int i = 0;
+    for (i = 0; i < 4 && share_table.mem[key].page_ptr[i] != NULL; i++) {
+      kfree(share_table.mem[key].page_ptr[i]);
+    }
+  }
+ }
+}
+// ADDED BY SRI
+int shm_refcount(int key) {
+   if (key < 0 || key > 7) {
+     return -1;
+   }
+   return ref_count[key];
+}
 extern char data[];  // defined in data.S
 
 static pde_t *kpgdir;  // for use in scheduler()
@@ -40,7 +151,7 @@ seginit(void)
 
   lgdt(c->gdt, sizeof(c->gdt));
   loadgs(SEG_KCPU << 3);
-
+  
   // Initialize cpu-local storage.
   cpu = c;
   proc = 0;
@@ -64,7 +175,7 @@ walkpgdir(pde_t *pgdir, const void *va, int create)
     // Make sure all those PTE_P bits are zero.
     memset(pgtab, 0, PGSIZE);
     // The permissions here are overly generous, but they can
-    // be further restricted by the permissions in the page table
+    // be further restricted by the permissions in the page table 
     // entries, if necessary.
     *pde = PADDR(pgtab) | PTE_P | PTE_W | PTE_U;
   }
@@ -79,7 +190,7 @@ mappages(pde_t *pgdir, void *la, uint size, uint pa, int perm)
 {
   char *a, *last;
   pte_t *pte;
-
+  
   a = PGROUNDDOWN(la);
   last = PGROUNDDOWN(la + size - 1);
   for(;;){
@@ -104,7 +215,7 @@ mappages(pde_t *pgdir, void *la, uint size, uint pa, int perm)
 // A user process uses the same page table as the kernel; the
 // page protection bits prevent it from using anything other
 // than its memory.
-//
+// 
 // setupkvm() and exec() set up every page table like this:
 //   0..640K          : user memory (text, data, stack, heap)
 //   640K..1M         : mapped direct (for IO space)
@@ -190,7 +301,7 @@ void
 inituvm(pde_t *pgdir, char *init, uint sz)
 {
   char *mem;
-
+  
   if(sz >= PGSIZE)
     panic("inituvm: more than a page");
   mem = kalloc();
@@ -231,13 +342,13 @@ allocuvm(pde_t *pgdir, uint oldsz, uint newsz)
   char *mem;
   uint a;
 
-  if(newsz + PGSIZE + PGSIZE * proc->shmem_count > USERTOP)
+  if(newsz > virtual_addr)
     return 0;
   if(newsz < oldsz)
     return oldsz;
 
-  a = PGROUNDUP(oldsz + PGSIZE);
-  for(; a < newsz + PGSIZE; a += PGSIZE){
+  a = PGROUNDUP(oldsz);
+  for(; a < newsz; a += PGSIZE){
     mem = kalloc();
     if(mem == 0){
       cprintf("allocuvm out of memory\n");
@@ -263,8 +374,8 @@ deallocuvm(pde_t *pgdir, uint oldsz, uint newsz)
   if(newsz >= oldsz)
     return oldsz;
 
-  a = PGROUNDUP(newsz + PGSIZE);
-  for(; a  < oldsz + PGSIZE; a += PGSIZE){
+  a = PGROUNDUP(newsz);
+  for(; a  < oldsz; a += PGSIZE){
     pte = walkpgdir(pgdir, (char*)a, 0);
     if(pte && (*pte & PTE_P) != 0){
       pa = PTE_ADDR(*pte);
@@ -286,7 +397,7 @@ freevm(pde_t *pgdir)
 
   if(pgdir == 0)
     panic("freevm: no pgdir");
-  deallocuvm(pgdir, USERTOP - PGSIZE - PGSIZE * 4, 0);
+  deallocuvm(pgdir, USERTOP, 0);
   for(i = 0; i < NPDENTRIES; i++){
     if(pgdir[i] & PTE_P)
       kfree((char*)PTE_ADDR(pgdir[i]));
@@ -306,9 +417,7 @@ copyuvm(pde_t *pgdir, uint sz)
 
   if((d = setupkvm()) == 0)
     return 0;
-
-  // Start at 0x1000, not 0x0
-  for(i = PGSIZE; i < sz + PGSIZE; i += PGSIZE){
+  for(i = 0; i < sz; i += PGSIZE){
     if((pte = walkpgdir(pgdir, (void*)i, 0)) == 0)
       panic("copyuvm: pte should exist");
     if(!(*pte & PTE_P))
@@ -349,7 +458,7 @@ copyout(pde_t *pgdir, uint va, void *p, uint len)
 {
   char *buf, *pa0;
   uint n, va0;
-
+  
   buf = (char*)p;
   while(len > 0){
     va0 = (uint)PGROUNDDOWN(va);
@@ -365,108 +474,4 @@ copyout(pde_t *pgdir, uint va, void *p, uint len)
     va = va0 + PGSIZE;
   }
   return 0;
-}
-
-int all_shmem_count[4];
-void* all_shmem_address[4];
-
-// initialize shared memory
-void shmeminit(void){
-  int i;
-  for(i = 0; i < 4; i ++){
-    all_shmem_address[i] = NULL;
-    all_shmem_count[i] = 0;
-  }
-}
-
-// free shared memory if no process is using it
-void freeshmem(struct proc* proc){
-  int i;
-  for (i = 0; i < 4; i ++){
-    if (proc->shmem_address[i] != NULL){
-      if (all_shmem_address[i] != NULL){
-        all_shmem_count[i] --;
-        if (all_shmem_count[i] == 0){
-          kfree((char*) all_shmem_address[i]);
-        }
-      }
-    }
-  }
-}
-
-
-// let the child inheret its parent's shared memory
-void copy_shmem(struct proc* np, struct proc* proc){
-  np->shmem_count = proc->shmem_count;
-  int j;
-  for (j = 0; j < 4; j ++){
-    if (proc->shmem_address[j] != NULL){
-      np->shmem_address[j] = proc->shmem_address[j];
-      all_shmem_count[j]++;
-    }
-  }
-}
-
-
-// Request shared memory access by a process
-void* shmem_access(int page_number)
-{
-  if (proc->shmem_count >= 4){
-    panic("Already requested 4 shared pages.");
-    return NULL;
-  }
-
-  if (page_number < 0 || page_number > 3){
-    panic("Invalid page number. Valid page numbers: 0,1,2,3.");
-    return NULL;
-  }
-
-
-  // if the process has requested that shared page before
-  if (proc->shmem_address[page_number] != NULL){
-    if (mappages(proc->pgdir, proc->shmem_address[page_number], PGSIZE, PADDR(all_shmem_address[page_number]), PTE_W|PTE_U) < 0){
-      panic("Cannot create PTE for linear address that refers to physical address.");
-      return NULL;
-    }
-    return proc->shmem_address[page_number];
-  }
-
-  void* new_address = (void*)(USERTOP - proc->shmem_count * PGSIZE - PGSIZE);
-  if (proc->sz >= (uint) new_address){
-    panic("Not enough space.");
-    return NULL;
-  }
-
-
-  if ((all_shmem_address[page_number] = kalloc()) == 0){
-    panic("Cannot allocate physical memory.");
-    return NULL;
-  }
-
-
-  if (mappages(proc->pgdir, new_address, PGSIZE, PADDR(all_shmem_address[page_number]), PTE_W|PTE_U) < 0){
-    panic("Cannot create PTE for linear address that refers to physical address.");
-    return NULL;
-  }
-
-  all_shmem_count[page_number]++;
-  proc->shmem_count++;
-  proc->shmem_address[page_number] = new_address;
-
-  return new_address;
-}
-
-// Count number of process using the shared page
-int shmem_count(int page_number)
-{
-  if (page_number < 0 || page_number > 3){
-    panic("Invalid page number. Valid page numbers: 0,1,2,3.");
-    return -1;
-  }
-
-  if (proc->shmem_count < 0 || proc->shmem_count > 3){
-    return -1;
-  }
-
-  return all_shmem_count[page_number];
 }

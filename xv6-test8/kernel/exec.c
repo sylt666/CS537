@@ -32,7 +32,7 @@ exec(char *path, char **argv)
     goto bad;
 
   // Load program into memory.
-  sz = PGSIZE;
+  sz = 0;
   for(i=0, off=elf.phoff; i<elf.phnum; i++, off+=sizeof(ph)){
     if(readi(ip, (char*)&ph, off, sizeof(ph)) != sizeof(ph))
       goto bad;
@@ -80,20 +80,27 @@ exec(char *path, char **argv)
       last = s+1;
   safestrcpy(proc->name, last, sizeof(proc->name));
 
-  int j;
-  for(j = 0; j < 4; j++){
-    if(proc->pageAddr[j] != 0){
-      proc->pageAddr[j] = 0;
-      shmem_close(j);
-    }
-  }
-
   // Commit to the user image.
   oldpgdir = proc->pgdir;
   proc->pgdir = pgdir;
   proc->sz = sz;
   proc->tf->eip = elf.entry;  // main
   proc->tf->esp = sp;
+  proc->current_shared_pages_top = USERTOP;
+  for(i=0; i<MAX_KEYS; i++)
+  {
+    if (proc->shmem_addr[i] != NULL)  // The child process has some shared memory segments
+    {
+      proc->shmem_addr[i] = NULL;
+      shmem_count[i]--;
+      if (shmem_count[i] == 0)
+      {
+        int j;
+        for (j=0; j<shmem_pages[i] ;j++)
+          kfree(shmem_addr[i][j]);
+      }
+    }
+  }
   switchuvm(proc);
   freevm(oldpgdir);
 

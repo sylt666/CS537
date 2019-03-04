@@ -90,19 +90,23 @@ sys_uptime(void)
 }
 
 int
-sys_shmem_access(void)
+sys_shm_refcount(void)
 {
-  int pgInfo;
-  if((argint(0, &pgInfo)) == -1)
+  int key;
+
+  if(argint(0, &key) < 0)
     return -1;
-  return (int) shmem_access(pgInfo);
+  return shm_refcount(key);
 }
 
 int
-sys_shmem_count(void)
+sys_shmgetat(void)
 {
-  int pgInfo;
-  if((argint(0, &pgInfo)) == -1)
+  int key, numPages;
+
+  if(argint(0, &key) < 0)
     return -1;
-  return shmem_count(pgInfo);
+  if(argint(1, &numPages) < 0)
+    return -1;
+  return (unsigned int)shmgetat(key, numPages);
 }

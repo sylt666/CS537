@@ -5,7 +5,7 @@
 #include "defs.h"
 #include "x86.h"
 #include "elf.h"
-
+extern int ref_count[8];
 int
 exec(char *path, char **argv)
 {
@@ -73,7 +73,6 @@ exec(char *path, char **argv)
   sp -= (3+argc+1) * 4;
   if(copyout(pgdir, sp, ustack, (3+argc+1)*4) < 0)
     goto bad;
-
   // Save program name for debugging.
   for(last=s=path; *s; s++)
     if(*s == '/')
@@ -86,13 +85,26 @@ exec(char *path, char **argv)
   proc->sz = sz;
   proc->tf->eip = elf.entry;  // main
   proc->tf->esp = sp;
-  proc->shmem_count = 0;
-  int j = 0;
-  for (; j < 4; j ++){
-    proc->shmem_address[j] = NULL;
+  for (i = 0; i < 8; i++) {
+    proc->shared_mem[i] = (char*)-1; 
+  }
+
+  i = 0;
+  for (i = 0; i < 8; i++) {
+    proc->keys[i] = 0; 
+  }
+  proc->vaddr = 0;
+  i = 0;
+  for (i = 0; i < 8; i++) {
+    proc->va[i] = (void*)0;
+  }
+  int k = 0;
+  for (k =0; k < 8; k++) {
+     if (ref_count[k] != 0){
+       ref_count[k] --;
+     }
   }
   switchuvm(proc);
-
   freevm(oldpgdir);
 
   return 0;

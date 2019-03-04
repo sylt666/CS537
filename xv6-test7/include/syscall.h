@@ -23,8 +23,6 @@
 #define SYS_sbrk   19
 #define SYS_sleep  20
 #define SYS_uptime 21
-#define SYS_getprocs 22
-#define SYS_shmem_access 23
-#define SYS_shmem_count 24
-
+#define SYS_shmgetat 22
+#define SYS_shm_refcount 23
 #endif // _SYSCALL_H_

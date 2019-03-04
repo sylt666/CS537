@@ -53,7 +53,7 @@ found:
     return 0;
   }
   sp = p->kstack + KSTACKSIZE;
-  p->lowestAddr = USERTOP;  
+  
   // Leave room for trap frame.
   sp -= sizeof *p->tf;
   p->tf = (struct trapframe*)sp;
@@ -84,20 +84,21 @@ userinit(void)
   if((p->pgdir = setupkvm()) == 0)
     panic("userinit: out of memory?");
   inituvm(p->pgdir, _binary_initcode_start, (int)_binary_initcode_size);
-  p->sz = PGSIZE + PGSIZE;
+  p->sz = PGSIZE;
   memset(p->tf, 0, sizeof(*p->tf));
   p->tf->cs = (SEG_UCODE << 3) | DPL_USER;
   p->tf->ds = (SEG_UDATA << 3) | DPL_USER;
   p->tf->es = p->tf->ds;
   p->tf->ss = p->tf->ds;
   p->tf->eflags = FL_IF;
-  p->tf->esp = PGSIZE + PGSIZE;
-  p->tf->eip = PGSIZE;  // beginning of initcode.S
+  p->tf->esp = PGSIZE;
+  p->tf->eip = 0;  // beginning of initcode.S
 
   safestrcpy(p->name, "initcode", sizeof(p->name));
   p->cwd = namei("/");
 
   p->state = RUNNABLE;
+  p->current_shared_pages_top = USERTOP;
   release(&ptable.lock);
 }
 
@@ -107,10 +108,9 @@ int
 growproc(int n)
 {
   uint sz;
+  
   sz = proc->sz;
   if(n > 0){
-    if((sz+n) > proc->lowestAddr)
-      return -1;
     if((sz = allocuvm(proc->pgdir, sz, sz + n)) == 0)
       return -1;
   } else if(n < 0){
@@ -129,7 +129,7 @@ int
 fork(void)
 {
   int i, pid;
-  struct proc *np;
+  struct proc *np, *proc_bk;
 
   // Allocate process.
   if((np = allocproc()) == 0)
@@ -145,12 +145,7 @@ fork(void)
   np->sz = proc->sz;
   np->parent = proc;
   *np->tf = *proc->tf;
-  np->pageAccesses = proc->pageAccesses;
-  np->lowestAddr = proc->lowestAddr;
-  int j;
-  for(j = 0; j < 4; j++){
-    np->pageAddr[j] = proc->pageAddr[j];
-  }
+
   // Clear %eax so that fork returns 0 in the child.
   np->tf->eax = 0;
 
@@ -161,6 +156,19 @@ fork(void)
  
   pid = np->pid;
   np->state = RUNNABLE;
+  np->current_shared_pages_top = USERTOP;
+  for(i=0; i<MAX_KEYS; i++)
+    np->shmem_addr[i] = NULL;
+  for(i=0; i<MAX_KEYS; i++)
+  {
+    if (proc->shmem_addr[i] != NULL)  // The parent process has some shared memory segments
+    {
+      proc_bk = proc;
+      proc = np;
+      (void)shmgetat(i,1);
+      proc = proc_bk;
+    }
+  }
   safestrcpy(np->name, proc->name, sizeof(proc->name));
   return pid;
 }
@@ -201,11 +209,6 @@ exit(void)
         wakeup1(initproc);
     }
   }
-  int j;
-  for(j = 0; j < 4; j++){
-    if(proc->pageAddr[j] != 0)
-      shmem_close(j);
-  }
 
   // Jump into the scheduler, never to return.
   proc->state = ZOMBIE;
@@ -218,7 +221,7 @@ exit(void)
 int
 wait(void)
 {
-  struct proc *p;
+  struct proc *p, *proc_bk;
   int havekids, pid;
 
   acquire(&ptable.lock);
@@ -234,13 +237,30 @@ wait(void)
         pid = p->pid;
         kfree(p->kstack);
         p->kstack = 0;
-        if(p->pageAccesses == 0)
-          freevm(p->pgdir);
+        proc_bk = proc;
+        proc = p;
+        freevm(p->pgdir);
+        proc = proc_bk;
         p->state = UNUSED;
         p->pid = 0;
         p->parent = 0;
         p->name[0] = 0;
         p->killed = 0;
+        int i;
+        for(i=0; i<MAX_KEYS; i++)
+        {
+          if (p->shmem_addr[i] != NULL)  // The child process has some shared memory segments
+          {
+            p->shmem_addr[i] = NULL;
+            shmem_count[i]--;
+            if (shmem_count[i] == 0)
+            {
+              int j;
+              for (j=0; j<shmem_pages[i] ;j++)
+                kfree(shmem_addr[i][j]);
+            }
+          }
+        }
         release(&ptable.lock);
         return pid;
       }
@@ -454,3 +474,5 @@ procdump(void)
     cprintf("\n");
   }
 }
+
+

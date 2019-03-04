@@ -6,7 +6,7 @@
 #include "x86.h"
 #include "syscall.h"
 #include "sysfunc.h"
-
+ int usertop = USERTOP; 
 // User code makes a system call with INT T_SYSCALL.
 // System call number in %eax.
 // Arguments on the stack, from the user call to the C
@@ -17,7 +17,10 @@
 int
 fetchint(struct proc *p, uint addr, int *ip)
 {
-  if(addr >= p->sz || addr+4 > p->sz)
+  if( (addr >= p->sz && addr < p->vaddr) || (addr+4 > p->sz && addr+4 < p->vaddr))
+    return -1;
+
+  if (addr + 4 > USERTOP) 
     return -1;
   *ip = *(int*)(addr);
   return 0;
@@ -30,14 +33,23 @@ int
 fetchstr(struct proc *p, uint addr, char **pp)
 {
   char *s, *ep;
-
-  if(addr >= p->sz)
-    return -1;
+    if ((addr >= p->sz &&  addr < p->vaddr) || addr >= USERTOP) { 
+      return -1;
+    }
+  
   *pp = (char*)addr;
+  if (addr < p->vaddr) {
   ep = (char*)p->sz;
-  for(s = *pp; s < ep; s++)
-    if(*s == 0)
+  }
+  else {
+  ep = (char*)USERTOP;
+  }
+
+ for(s = *pp; s < ep; s++) {
+    if(*s == 0){
       return s - *pp;
+    }
+  }
   return -1;
 }
 
@@ -55,11 +67,15 @@ int
 argptr(int n, char **pp, int size)
 {
   int i;
-
+  
   if(argint(n, &i) < 0)
     return -1;
-  if((uint)i >= proc->sz || (uint)i+size > proc->sz)
-    return -1;
+  if( ((uint)i >= proc->sz && (uint)i < proc->vaddr) || ((uint)i+size > proc->sz && (uint)i+size < proc->vaddr)) {
+     return -1;
+  }
+   if ((uint)i > USERTOP || (uint)i + size > USERTOP) {
+     return -1;
+    }
   *pp = (char*)i;
   return 0;
 }
@@ -103,10 +119,8 @@ static int (*syscalls[])(void) = {
 [SYS_wait]    sys_wait,
 [SYS_write]   sys_write,
 [SYS_uptime]  sys_uptime,
-[SYS_getprocs] sys_getprocs,
-[SYS_shmem_access] sys_shmem_access,
-[SYS_shmem_count] sys_shmem_count
-
+[SYS_shmgetat] sys_shmgetat,
+[SYS_shm_refcount] sys_shm_refcount,
 };
 
 // Called on a syscall trap. Checks that the syscall number (passed via eax)
@@ -115,7 +129,7 @@ void
 syscall(void)
 {
   int num;
-
+  
   num = proc->tf->eax;
   if(num > 0 && num < NELEM(syscalls) && syscalls[num] != NULL) {
     proc->tf->eax = syscalls[num]();

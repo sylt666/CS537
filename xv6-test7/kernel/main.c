@@ -21,14 +21,15 @@ main(void)
   lapicinit(mpbcpu());
   seginit();       // set up segments
   kinit();         // initialize memory allocator
-  jmpkstack();       // call mainc() on a properly-allocated stack
+  jmpkstack();       // call mainc() on a properly-allocated stack 
+  //share_mem_init(); // Function created in vm.c (Sri)
 }
 
 void
 jmpkstack(void)
 {
   char *kstack, *top;
-
+  
   kstack = kalloc();
   if(kstack == 0)
     panic("jmpkstack kalloc");
@@ -48,6 +49,7 @@ mainc(void)
   consoleinit();   // I/O devices & their interrupts
   uartinit();      // serial port
   kvmalloc();      // initialize the kernel page table
+  //cprintf("after kvmalloc");
   pinit();         // process table
   tvinit();        // trap vectors
   binit();         // buffer cache
@@ -59,11 +61,18 @@ mainc(void)
   bootothers();    // start other processors
 
   // Finish setting up this processor in
+   //cprintf("before cinit");
   cinit();
   sti();           // enable inturrupts
+ //cprintf("before userinit"); 
+ share_mem_init(); // Function created in vm.c (Sri)
+ //cprintf("after meminit");
   userinit();      // first user process
-  shmeminit();
+  //share_mem_init(); // Function created in vm.c (Sri)
+ //cprintf("aftee# userinit");
+
   scheduler();     // start running processes
+//  share_mem_init(); // Function created in vm.c (Sri)
 }
 
 // common cpu init code
@@ -124,3 +133,4 @@ bootothers(void)
 }
 
 // Blank page.
+
