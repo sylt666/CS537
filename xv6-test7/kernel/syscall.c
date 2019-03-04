@@ -17,7 +17,7 @@
 int
 fetchint(struct proc *p, uint addr, int *ip)
 {
-  if((addr >= p->sz || addr+4 > p->sz) && (addr < (USERTOP - (p->shmem_total*PGSIZE))))
+  if(addr >= p->sz || addr+4 > p->sz)
     return -1;
   *ip = *(int*)(addr);
   return 0;
@@ -31,9 +31,9 @@ fetchstr(struct proc *p, uint addr, char **pp)
 {
   char *s, *ep;
 
-  if((addr >= p->sz) && (addr < (USERTOP - (p->shmem_total*PGSIZE))))
+  if(addr >= p->sz)
     return -1;
-  *pp = (char*)(addr < p->sz ? p->sz : USERTOP);
+  *pp = (char*)addr;
   ep = (char*)p->sz;
   for(s = *pp; s < ep; s++)
     if(*s == 0)
@@ -55,12 +55,10 @@ int
 argptr(int n, char **pp, int size)
 {
   int i;
-  
+
   if(argint(n, &i) < 0)
     return -1;
-  if(i<PGSIZE)
-    return -1;
-  if(((uint)i >= proc->sz || (uint)i+size > proc->sz) && (((uint) i < (USERTOP - (proc->shmem_total*PGSIZE))) || ((uint) i + size > USERTOP)))
+  if((uint)i >= proc->sz || (uint)i+size > proc->sz)
     return -1;
   *pp = (char*)i;
   return 0;
@@ -105,8 +103,10 @@ static int (*syscalls[])(void) = {
 [SYS_wait]    sys_wait,
 [SYS_write]   sys_write,
 [SYS_uptime]  sys_uptime,
-[SYS_shmem_access]   sys_shmem_access,
-[SYS_shmem_count]  sys_shmem_count,
+[SYS_getprocs] sys_getprocs,
+[SYS_shmem_access] sys_shmem_access,
+[SYS_shmem_count] sys_shmem_count
+
 };
 
 // Called on a syscall trap. Checks that the syscall number (passed via eax)
@@ -115,7 +115,7 @@ void
 syscall(void)
 {
   int num;
-  
+
   num = proc->tf->eax;
   if(num > 0 && num < NELEM(syscalls) && syscalls[num] != NULL) {
     proc->tf->eax = syscalls[num]();

@@ -7,8 +7,10 @@ struct file;
 struct inode;
 struct pipe;
 struct proc;
+struct SharedPage;
 struct spinlock;
 struct stat;
+struct ProcessInfo;
 
 // bio.c
 void            binit(void);
@@ -98,8 +100,11 @@ int             pipewrite(struct pipe*, char*, int);
 struct proc*    copyproc(struct proc*);
 void            exit(void);
 int             fork(void);
+pde_t*          get_pgdir(void);
 int             growproc(int);
 int             kill(int);
+int             ps(void);
+int             getprocs(struct ProcessInfo *processInfoTable);
 void            pinit(void);
 void            procdump(void);
 void            scheduler(void) __attribute__((noreturn));
@@ -146,7 +151,7 @@ void            timerinit(void);
 void            idtinit(void);
 extern uint     ticks;
 void            tvinit(void);
-extern struct spinlock tickslock;
+extern struct   spinlock tickslock;
 
 // uart.c
 void            uartinit(void);
@@ -154,25 +159,27 @@ void            uartintr(void);
 void            uartputc(int);
 
 // vm.c
-void            seginit(void);
-void            kvmalloc(void);
-void            vmenable(void);
-pde_t*          setupkvm(void);
-char*           uva2ka(pde_t*, char*);
-int             allocuvm(pde_t*, uint, uint);
-int             deallocuvm(pde_t*, uint, uint);
-void            freevm(pde_t*);
-void            inituvm(pde_t*, char*, uint);
-int             loaduvm(pde_t*, char*, struct inode*, uint, uint);
-pde_t*          copyuvm(pde_t*, uint);
-void            switchuvm(struct proc*);
-void            switchkvm(void);
-int             copyout(pde_t*, uint, void*, uint);
-
-/* For calling the shared memory functions throughout xv6 */
-void            shmeminit(void); 
-int             shmem_count(int);
-void*           shmem_access(int);
+void                seginit(void);
+void                kvmalloc(void);
+void                vmenable(void);
+pde_t*              setupkvm(void);
+char*               uva2ka(pde_t*, char*);
+int                 allocuvm(pde_t*, uint, uint);
+int                 deallocuvm(pde_t*, uint, uint);
+void                freevm(pde_t*);
+void                inituvm(pde_t*, char*, uint);
+int                 loaduvm(pde_t*, char*, struct inode*, uint, uint);
+pde_t*              copyuvm(pde_t*, uint);
+void                switchuvm(struct proc*);
+void                switchkvm(void);
+int                 copyout(pde_t*, uint, void*, uint);
+int                 shares_page(struct proc*, struct SharedPage);
+void                shmeminit(void);
+void* 					    shmem_access(int);
+int 					      shmem_count(int);
+void*             	setup_shmem(int);
+int             	  shmem_leave(struct proc*, int);
+int             	  shmem_share_with_child(struct proc*, struct proc*);
 
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))

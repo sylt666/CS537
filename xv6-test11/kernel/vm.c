@@ -4,18 +4,12 @@
 #include "x86.h"
 #include "mmu.h"
 #include "proc.h"
+#include "spinlock.h"
 #include "elf.h"
 
 extern char data[];  // defined in data.S
 
 static pde_t *kpgdir;  // for use in scheduler()
-
-/* The total number of shared pages
- * The counts for each process's shared memory access
- * And the base address array */
-#define SHMEM_PAGES (4)
-int shmem_counts[SHMEM_PAGES];
-void *shmem_addr[SHMEM_PAGES];
 
 // Allocate one page table for the machine for the kernel address
 // space for scheduler processes.
@@ -238,7 +232,7 @@ allocuvm(pde_t *pgdir, uint oldsz, uint newsz)
   char *mem;
   uint a;
 
-  if(newsz > (USERTOP - ((proc->shmem + 1) * PGSIZE)))
+  if(newsz - 0x1000 > USERTOP)
     return 0;
   if(newsz < oldsz)
     return oldsz;
@@ -293,20 +287,12 @@ freevm(pde_t *pgdir)
 
   if(pgdir == 0)
     panic("freevm: no pgdir");
-
-  deallocuvm(pgdir, USERTOP - ((proc->shmem+1) * PGSIZE), 0);
-  
+  deallocuvm(pgdir, USERTOP, 0);
   for(i = 0; i < NPDENTRIES; i++){
     if(pgdir[i] & PTE_P)
       kfree((char*)PTE_ADDR(pgdir[i]));
   }
   kfree((char*)pgdir);
-
-  /* When memory is freed, the shmem_counts need to 
-   * be updated to their current value - 1 */
-  for(i = 0; i < SHMEM_PAGES; i++)
-    if(proc->shmem_child[i] != NULL)
-      shmem_counts[i]--;
 }
 
 // Given a parent process's page table, create a copy
@@ -321,7 +307,9 @@ copyuvm(pde_t *pgdir, uint sz)
 
   if((d = setupkvm()) == 0)
     return 0;
-  for(i = 4096; i < sz; i += PGSIZE){
+  // project 2: start after the first page when copying
+  // virtual memory addresses.
+  for(i = PGSIZE; i < sz; i += PGSIZE){
     if((pte = walkpgdir(pgdir, (void*)i, 0)) == 0)
       panic("copyuvm: pte should exist");
     if(!(*pte & PTE_P))
@@ -333,13 +321,6 @@ copyuvm(pde_t *pgdir, uint sz)
     if(mappages(d, (void*)i, PGSIZE, PADDR(mem), PTE_W|PTE_U) < 0)
       goto bad;
   }
-
-  /* Each time the parent process's page table is copied,
-   * the counts need to be updated to + 1 */
-  for(i = 0; i < SHMEM_PAGES; i++)
-    if(proc->shmems[i] != NULL)
-      shmem_counts[i]++;
-
   return d;
 
 bad:
@@ -387,55 +368,114 @@ copyout(pde_t *pgdir, uint va, void *p, uint len)
   return 0;
 }
 
-/* Initializes the shared memory.
- * All of the counts for each page start at 0.
- * Uses kalloc to allocate 4 pages, stores the address
- * of each page in shmem_addr. If any of this fails, it
- * will panic and quit */
-void shmeminit(void)
+
+void shmeminit()
 {
-  int i;
-  for(i = 0; i < SHMEM_PAGES; i++)
-  {
-    shmem_counts[i] = 0;
-    if((shmem_addr[i] = kalloc()) == 0)
-    {
-      panic("shmeminit failed");
-    }
+  initlock(&sharedtable.lock, "shared");
+  struct SharedPage page1;
+  page1.va = (void*)(USERTOP-PGSIZE);
+  page1.pa = (void*)NULL;
+  page1.ref_count = 0;
+  struct SharedPage page2;
+  page2.va = (void*)(USERTOP-2*PGSIZE);
+  page2.pa = (void*)NULL;
+  page2.ref_count = 0;
+  struct SharedPage page3;
+  page3.va = (void*)(USERTOP-3*PGSIZE);
+  page3.pa = (void*)NULL;
+  page3.ref_count = 0;
+  struct SharedPage page4;
+  page4.va = (void*)(USERTOP-4*PGSIZE);
+  page4.pa = (void*)NULL;
+  page4.ref_count = 0;
+  sharedtable.pages[0] = page1;
+  sharedtable.pages[1] = page2;
+  sharedtable.pages[2] = page3;
+  sharedtable.pages[3] = page4;
+}
+
+void*
+shmem_access(int page_number)
+{
+  if(page_number < 0)
+    return (void*)NULL;
+  void* va = setup_shmem(page_number);
+  return va;
+}
+
+// Set up the shared memory in the page table
+void*
+setup_shmem(int page_number)
+{
+  char *mem;
+  struct SharedPage *page;
+  acquire(&sharedtable.lock);
+  if(sharedtable.pages[page_number].ref_count == 0) {
+    // if the page is empty, go ahead
+    page = &sharedtable.pages[page_number];
+    mem = kalloc();
+    page->pa = mem;
+    mappages(proc->pgdir, page->va, PGSIZE, (uint)mem, PTE_W|PTE_U);
+  } else if (shares_page(proc, sharedtable.pages[page_number])) {
+    page = &sharedtable.pages[page_number];
   }
+
+  page->ref_count++;
+  proc->shared_page_number = page_number;
+  release(&sharedtable.lock);
+
+  return (void*)page->va;
 }
 
-/* Returns the count for the requested page number.
- * This is done by simply returning the smem_counts element
- * at the page number index */
-int shmem_count(int page_number)
+int
+shmem_count(int page_number)
 {
-  if(page_number < 0 || page_number >= SHMEM_PAGES)
+ acquire(&sharedtable.lock);
+ int ref_count = sharedtable.pages[page_number].ref_count;
+ release(&sharedtable.lock);
+ return ref_count;
+}
+
+int
+shares_page(struct proc *p, struct SharedPage page)
+{
+  pte_t *entry;
+  entry = walkpgdir(p->pgdir, page.pa, 0);
+  if(*entry & PTE_P)
+    return 1;
+  return 0;
+}
+
+int
+shmem_share_with_child(struct proc *parent, struct proc *child)
+{
+  if(parent->shared_page_number < 0)
+    return 0;
+  acquire(&sharedtable.lock);
+  char* pa = sharedtable.pages[parent->shared_page_number].pa;
+  char* va = sharedtable.pages[parent->shared_page_number].va;
+  mappages(child->pgdir, va, PGSIZE, (uint)pa, PTE_W|PTE_U);
+  sharedtable.pages[child->shared_page_number].ref_count++;
+  release(&sharedtable.lock);
+  return 1;
+}
+
+// remove a proc from a shmem page. if it's the last one, clean up.
+int
+shmem_leave(struct proc *p, int page_number)
+{
+  if(page_number < 0)
     return -1;
-  
-  return shmem_counts[page_number];
-}
-
-/* Returns the address of the requested page.
- * First checks if the requested page number is valid.
- * Then checks to see if the requested page has been mapped already
- *    if it has been mapped, it will simply return the associated address
- *    otherwise, it will call the mappages function, and then return the address */
-void* shmem_access(int page_number)
-{
-  if(page_number < 0 || page_number >= SHMEM_PAGES)
-    return NULL;
-
-  if(proc->shmems[page_number] != NULL)
-    return proc->shmems[page_number];
-
-  void *pageMap = (void *) (USERTOP - ((proc->shmem + 1) * PGSIZE));
-  if(proc->sz >= (int)pageMap)
-    return NULL;
-  if( mappages(proc->pgdir, pageMap, PGSIZE, PADDR(shmem_addr[page_number]), PTE_W|PTE_U) < 0 )
-    return NULL;
-  proc->shmem++;
-  shmem_counts[page_number]++;
-  proc->shmems[page_number] = pageMap;
-  return pageMap;
+  acquire(&sharedtable.lock);
+  if (sharedtable.pages[page_number].ref_count == 0) {
+    release(&sharedtable.lock);
+    return -1;
+  }
+  sharedtable.pages[page_number].ref_count--;
+  if(sharedtable.pages[page_number].ref_count == 0) {
+    kfree((char*)sharedtable.pages[page_number].pa);
+    sharedtable.pages[page_number].pa = (void*)NULL;
+  }
+  release(&sharedtable.lock);
+  return 1;
 }

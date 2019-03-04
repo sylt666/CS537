@@ -53,7 +53,7 @@ OBJDUMP := objdump
 ################################################################################
 
 # If the makefile can't find QEMU, specify its path here
-#QEMU :=
+QEMU := qemu-system-i386
 
 # Try to infer the correct QEMU if not specified
 ifndef QEMU
@@ -93,7 +93,7 @@ include user/makefile.mk
 include tools/makefile.mk
 DEPS := $(KERNEL_DEPS) $(USER_DEPS) $(TOOLS_DEPS)
 CLEAN := $(KERNEL_CLEAN) $(USER_CLEAN) $(TOOLS_CLEAN) \
-	fs fs.img .gdbinit .bochsrc dist runtests.log
+	fs fs.img .gdbinit .bochsrc dist
 
 .PHONY: clean distclean run depend qemu qemu-nox qemu-gdb qemu-nox-gdb bochs
 

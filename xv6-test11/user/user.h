@@ -2,6 +2,7 @@
 #define _USER_H_
 
 struct stat;
+struct ProcessInfo;
 
 // system calls
 int fork(void);
@@ -12,6 +13,8 @@ int write(int, void*, int);
 int read(int, void*, int);
 int close(int);
 int kill(int);
+int ps(void);
+int getprocs(struct ProcessInfo* procs);
 int exec(char*, char**);
 int open(char*, int);
 int mknod(char*, short, short);
@@ -25,9 +28,6 @@ int getpid(void);
 char* sbrk(int);
 int sleep(int);
 int uptime(void);
-
-/* Adds the system calls to the user.h function 
- * so that user programs can call them */
 void* shmem_access(int);
 int shmem_count(int);
 
@@ -46,3 +46,4 @@ void free(void*);
 int atoi(const char*);
 
 #endif // _USER_H_
+

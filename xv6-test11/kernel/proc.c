@@ -5,11 +5,14 @@
 #include "x86.h"
 #include "proc.h"
 #include "spinlock.h"
+#include "ProcessInfo.h"
 
 struct {
   struct spinlock lock;
   struct proc proc[NPROC];
 } ptable;
+
+struct ProcessInfo ProcessInfo[NPROC];
 
 static struct proc *initproc;
 
@@ -45,6 +48,7 @@ allocproc(void)
 found:
   p->state = EMBRYO;
   p->pid = nextpid++;
+  p->shared_page_number = -1;
   release(&ptable.lock);
 
   // Allocate kernel stack if possible.
@@ -67,12 +71,6 @@ found:
   p->context = (struct context*)sp;
   memset(p->context, 0, sizeof *p->context);
   p->context->eip = (uint)forkret;
-
-  /* Cleans up p's shmems array for each of the pages */
-  p->shmem = 0;
-  int i;
-  for(i = 0; i < 4; i++)
-    p->shmems[i] = NULL;
 
   return p;
 }
@@ -130,6 +128,7 @@ growproc(int n)
 // Create a new process copying p as the parent.
 // Sets up stack to return as if from system call.
 // Caller must set state of returned proc to RUNNABLE.
+// Additionally, copy any information about shared memory.
 int
 fork(void)
 {
@@ -162,19 +161,14 @@ fork(void)
   pid = np->pid;
   np->state = RUNNABLE;
   safestrcpy(np->name, proc->name, sizeof(proc->name));
-
-  /* For forking, duplicates the parent's shared memory
-   * for the child */
-  np->shmem = proc->shmem;
-  for(i = 0; i < 4; i++)
-    np->shmems[i] = proc->shmems[i];
-
+  //shmem_share_with_child(proc, np);
   return pid;
 }
 
 // Exit the current process.  Does not return.
 // An exited process remains in the zombie state
 // until its parent calls wait() to find out it exited.
+// Update the ref count on any shared pages it is using.
 void
 exit(void)
 {
@@ -191,6 +185,7 @@ exit(void)
       proc->ofile[fd] = 0;
     }
   }
+
 
   iput(proc->cwd);
   proc->cwd = 0;
@@ -234,17 +229,9 @@ wait(void)
       if(p->state == ZOMBIE){
         // Found one.
         pid = p->pid;
+        shmem_leave(p, p->shared_page_number);
         kfree(p->kstack);
         p->kstack = 0;
-
-
-        /* When waiting for a child process to exit */
-        int f;
-        for(f = 0; f < 4; f++)
-          proc->shmem_child[f] = proc->shmems[f];
-
-      
-
         freevm(p->pgdir);
         p->state = UNUSED;
         p->pid = 0;
@@ -465,4 +452,83 @@ procdump(void)
   }
 }
 
+// Print process listing.
+int
+ps(void)
+{
+  static char *states[] = {
+  [UNUSED]    "UNUSED",
+  [EMBRYO]    "EMBRYO",
+  [SLEEPING]  "SLEEP ",
+  [RUNNABLE]  "RUNBLE",
+  [RUNNING]   "RUN   ",
+  [ZOMBIE]    "ZOMBIE"
+  };
+  struct proc *p;
+  char *state;
+  volatile int ppid;
 
+
+  acquire(&ptable.lock);
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+    if(p->state == UNUSED)
+      continue;
+    if(p->state >= 0 && p->state < NELEM(states) && states[p->state])
+      state = states[p->state];
+    else
+      state = "???";
+    if(p->pid == 1)
+      ppid = -1;
+    else
+      ppid = p->parent->pid;
+    cprintf("%d %d %s %d %s", p->pid, ppid, state, p->sz, p->name);
+    cprintf("\n");
+  }
+  release(&ptable.lock);
+  return 1;
+}
+
+int
+getprocs(struct ProcessInfo *procTable)
+{
+  static char *states[] = {
+  [UNUSED]    "UNUSED",
+  [EMBRYO]    "EMBRYO",
+  [SLEEPING]  "SLEEP",
+  [RUNNABLE]  "RUNBLE",
+  [RUNNING]   "RUNNING",
+  [ZOMBIE]    "ZOMBIE"
+  };
+  struct proc *p;
+  char *state;
+  volatile int ppid;
+  int nprocs = 0;
+
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+    if(p->state == UNUSED)
+      continue;
+    if(p->state >= 0 && p->state < NELEM(states) && states[p->state])
+      state = states[p->state];
+    else
+      state = "???";
+    if(p->pid == 1)
+      ppid = -1;
+    else
+      ppid = p->parent->pid;
+
+    procTable->pid = p->pid;
+    procTable->ppid = ppid;
+    procTable->state = p->state;
+    procTable->sz = p->sz;
+    strncpy(procTable->name, p->name, sizeof(procTable->name));
+    procTable++;
+    nprocs++;
+  }
+  return nprocs; 
+}
+
+pde_t*
+get_pgdir(void)
+{
+  return proc->pgdir;
+}

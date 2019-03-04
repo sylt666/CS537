@@ -11,7 +11,7 @@ extern char data[];  // defined in data.S
 static pde_t *kpgdir;  // for use in scheduler()
 
 #define SHMEM_PAGES (4)
-int shmem_addr_count[SHMEM_PAGES];
+int shmemCount[SHMEM_PAGES];
 void* shmem_addr[SHMEM_PAGES];
 
 // Allocate one page table for the machine for the kernel address
@@ -199,7 +199,7 @@ inituvm(pde_t *pgdir, char *init, uint sz)
     panic("inituvm: more than a page");
   mem = kalloc();
   memset(mem, 0, PGSIZE);
-  mappages(pgdir, 0, PGSIZE, PADDR(mem), PTE_W|PTE_U);
+  mappages(pgdir, (void*) PGSIZE, PGSIZE, PADDR(mem), PTE_W|PTE_U);
   memmove(mem, init, sz);
 }
 
@@ -235,7 +235,7 @@ allocuvm(pde_t *pgdir, uint oldsz, uint newsz)
   char *mem;
   uint a;
 
-  if(newsz > USERTOP - proc->alloc_count * PGSIZE)
+  if(newsz > USERTOP)
     return 0;
   if(newsz < oldsz)
     return oldsz;
@@ -262,7 +262,7 @@ int
 deallocuvm(pde_t *pgdir, uint oldsz, uint newsz)
 {
   pte_t *pte;
-  uint a, pa, i;
+  uint a, pa;
 
   if(newsz >= oldsz)
     return oldsz;
@@ -278,12 +278,6 @@ deallocuvm(pde_t *pgdir, uint oldsz, uint newsz)
       *pte = 0;
     }
   }
-  
-  for(i = 0; i < SHMEM_PAGES; ++i) {
-    if (proc->shared_pages_va[i] != 0) {
-      shmem_addr_count[i] --;
-    }
-  }
   return newsz;
 }
 
@@ -297,25 +291,23 @@ freevm(pde_t *pgdir)
   if(pgdir == 0)
     panic("freevm: no pgdir");
   deallocuvm(pgdir, USERTOP, 0);
-  
   for(i = 0; i < NPDENTRIES; i++){
     if(pgdir[i] & PTE_P)
       kfree((char*)PTE_ADDR(pgdir[i]));
   }
-  
   kfree((char*)pgdir);
 }
 
 // Given a parent process's page table, create a copy
 // of it for a child.
 pde_t*
-copyuvm(pde_t *pgdir, uint sz, struct proc *p)
+copyuvm(pde_t *pgdir, uint sz)
 {
   pde_t *d;
   pte_t *pte;
   uint pa, i;
   char *mem;
-
+  int j;
   if((d = setupkvm()) == 0)
     return 0;
   for(i = PGSIZE; i < sz; i += PGSIZE){
@@ -324,23 +316,20 @@ copyuvm(pde_t *pgdir, uint sz, struct proc *p)
     if(!(*pte & PTE_P))
       panic("copyuvm: page not present");
     pa = PTE_ADDR(*pte);
-    if((mem = kalloc()) == 0) 
+    if((mem = kalloc()) == 0)
       goto bad;
     memmove(mem, (char*)pa, PGSIZE);
-    if(mappages(d, (void*)i, PGSIZE, PADDR(mem), PTE_W|PTE_U) < 0) 
+    if(mappages(d, (void*)i, PGSIZE, PADDR(mem), PTE_W|PTE_U) < 0)
       goto bad;
-    
   }
-  
-  for(i = 0; i < 4; ++i) {
-    p->shared_pages_va[i] = proc->shared_pages_va[i];
-    if(p->shared_pages_va[i] != 0)
-      shmem_addr_count[i]++;
+  for(j = 0; j < 4; j++){
+    if(shmemCount[j] == 0)
+      continue;
+    if(mappages(d, (void*) proc->pageAddr[j], PGSIZE, (uint)shmem_addr[j], PTE_W|PTE_U) < 0)
+      goto bad;
+    shmemCount[j]++;
   }
-  p->alloc_count = proc->alloc_count;
-  
   return d;
-
 bad:
   freevm(d);
   return 0;
@@ -367,8 +356,7 @@ int
 copyout(pde_t *pgdir, uint va, void *p, uint len)
 {
   char *buf, *pa0;
-  uint n, va0;
-  
+  uint n, va0; 
   buf = (char*)p;
   while(len > 0){
     va0 = (uint)PGROUNDDOWN(va);
@@ -386,59 +374,49 @@ copyout(pde_t *pgdir, uint va, void *p, uint len)
   return 0;
 }
 
-
-void shmeminit(void) {
-    cprintf("shmeminit\n");
-    int i;
-    for(i = 0; i < SHMEM_PAGES; i++) {
-      shmem_addr_count[i] = 0;
-      // allocate 4096B physical address
-      if((shmem_addr[i] = kalloc()) == 0)
-        panic("shmem init faild\n");
-      
-      cprintf("%x\n", (unsigned int)shmem_addr[i]);
-    }
+void
+shmem_init(void)
+{
+  int i;
+  for(i = 0; i < SHMEM_PAGES; i++){
+    shmemCount[i] = 0;
+    if((shmem_addr[i] = kalloc()) == 0)
+      panic("shmem_init failed");
+  }
 }
 
-// map a physical page into virtual address space of caller
-// starting at a very high end of the address space
-// return the virtual address of that pages to the caller
-// make sure here page_number is always legal
-
-void* shmem_access(int page_number, struct proc *p) {
-    // with illegal page_number
-    if(page_number < 0 || page_number > 3) 
-      return NULL;
-
-    // not allocate before
-    if(p->shared_pages_va[page_number] == 0) {
-      // check whether there are still free spaces
-      char *a;
-      pte_t *pte;
-      
-      p->alloc_count = p->alloc_count + 1;
-      a = PGROUNDDOWN(USERTOP - p->alloc_count * PGSIZE);
-      pte = walkpgdir(p->pgdir, a, 1);
-      if(*pte & PTE_P)
-        return NULL;
-      // mappages(pde_t *pgdir, void *la, uint size, uint pa, int perm)
-      mappages(p->pgdir, (void*)(USERTOP - p->alloc_count * PGSIZE), PGSIZE, PADDR(shmem_addr[page_number]), PTE_W|PTE_U);
-      p->shared_pages_va[page_number] = USERTOP - p->alloc_count * PGSIZE;
-      
-      // shmem_addr_count ++
-      shmem_addr_count[page_number] ++;
-    }
-    return (void *) (p->shared_pages_va[page_number]);
+void*
+shmem_access(int page_number)
+{ 
+  int vAddr;
+  if (page_number < 0 || page_number > 3)
+    return NULL;
+  if(proc->pageAddr[page_number] != 0)
+    return proc->pageAddr[page_number]; 
+  vAddr = USERTOP - (PGSIZE*(proc->pageAccesses + 1));
+  if(vAddr < 0)
+    return NULL;
+  if(proc->sz > vAddr)
+    return NULL;
+  if((mappages(proc->pgdir, (void*) vAddr, PGSIZE, (uint)shmem_addr[page_number], 
+      PTE_W|PTE_U)) < 0)
+    return NULL; 
+  proc->pageAddr[page_number] = (void*) vAddr;
+  proc->pageAccesses++;
+  proc->lowestAddr = vAddr;
+  shmemCount[page_number]++;
+  return (void*) vAddr;
 }
 
-int shmem_count(int page_number) {
-  if(page_number < 0 || page_number > 3)
+int
+shmem_count(int page_number)
+{
+  if (page_number < 0 || page_number > 3)
     return -1;
-    
-  return shmem_addr_count[page_number];
+  return shmemCount[page_number]; 
 }
 
-void shmem_set_count(int i) {
-  shmem_addr_count[i]--;
+void
+shmem_close(int page_number){
+  shmemCount[page_number]--;
 }
-

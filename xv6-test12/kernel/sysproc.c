@@ -5,7 +5,6 @@
 #include "mmu.h"
 #include "proc.h"
 #include "sysfunc.h"
-#include "processInfo.h"
 
 int
 sys_fork(void)
@@ -61,7 +60,7 @@ sys_sleep(void)
 {
   int n;
   uint ticks0;
-
+  
   if(argint(0, &n) < 0)
     return -1;
   acquire(&tickslock);
@@ -83,69 +82,25 @@ int
 sys_uptime(void)
 {
   uint xticks;
-
+  
   acquire(&tickslock);
   xticks = ticks;
   release(&tickslock);
   return xticks;
 }
 
-int
-sys_getprocs(void)
-{
 
-  char* processInfoTable;
-  if (argptr(0, &processInfoTable, NPROC * sizeof(struct ProcessInfo)) < 0) {
-    return -1;
-  }
-
-  int numProcessesGotten = getprocs((struct ProcessInfo*) processInfoTable);
-
-  return numProcessesGotten;
-
-}
-
-int
-check_sharedmem_range(int page_number) {
-  if (page_number > 3) {
-    return 0;
-  }
-
-  if (page_number < 0) {
-      return 0;
-  }
-
-  return 1;
-}
-
-int
-sys_shmem_access(void)
-{
-
+int sys_shmem_count(void){
   int page_number;
-
-  if(argint(0, &page_number) < 0)
-    return NULL;
-
-  if (check_sharedmem_range(page_number) == 0) {
-    return NULL;
-  }
-
-  return (int) shmem_access(page_number);;
-}
-
-int
-sys_shmem_count(void)
-{
-
-  int page_number;
-
   if(argint(0, &page_number) < 0)
     return -1;
+  return shmem_count(page_number);
+}
 
-  if (check_sharedmem_range(page_number) == 0) {
+
+int sys_shmem_access(void){
+  int page_number;
+  if(argint(0, &page_number) < 0)
     return -1;
-  }
-
-  return shmem_count(page_number);;
+  return (int) shmem_access(page_number);
 }

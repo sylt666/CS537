@@ -17,12 +17,7 @@
 int
 fetchint(struct proc *p, uint addr, int *ip)
 {
-  // The start/end of the address should be under size or in accessed shmem
-  if(addr == 0 
-    || (addr >= *(p->sz) && addr < USERTOP - (p->shmem_count + 1) * PGSIZE) 
-    || (addr+4 > *(p->sz) && addr+4 <= USERTOP - (p->shmem_count + 1) * PGSIZE))
-    return -1;
-  if(p->pid != 1 && addr < PGSIZE)
+  if(addr >= p->sz || addr+4 > p->sz)
     return -1;
   *ip = *(int*)(addr);
   return 0;
@@ -35,20 +30,11 @@ int
 fetchstr(struct proc *p, uint addr, char **pp)
 {
   char *s, *ep;
-  // The start of the address should be under size or in accessed shmem
-  if(addr == 0 || (addr >= *(p->sz) && addr < USERTOP - (p->shmem_count + 1) * PGSIZE))
-    return -1;
-  if(p->pid != 1 && addr < PGSIZE) {
-    return -1;
-  }
-  *pp = (char*)addr;
-  // The end of the string should be less than sz if not shared
-  if (addr < *(p->sz))
-    ep = (char*)(*p->sz);
-  // If it is shmem, the end should be less than page end
-  else
-    ep = (char*)USERTOP;
 
+  if(addr >= p->sz)
+    return -1;
+  *pp = (char*)addr;
+  ep = (char*)p->sz;
   for(s = *pp; s < ep; s++)
     if(*s == 0)
       return s - *pp;
@@ -69,15 +55,10 @@ int
 argptr(int n, char **pp, int size)
 {
   int i;
+  
   if(argint(n, &i) < 0)
     return -1;
-  if(proc->pid != 1 && i < PGSIZE) 
-    return -1;
-  // The start of the address should be under size or in accessed shmem
-  if(i >= *(proc->sz) && (i < USERTOP - proc->shmem_count * PGSIZE))
-    return -1;
-  // The same to the end of the address
-  if((i + size > *(proc->sz) && i + size <= USERTOP - proc->shmem_count * PGSIZE) || i + size > USERTOP)
+  if((uint)i >= proc->sz || (uint)i+size > proc->sz)
     return -1;
   *pp = (char*)i;
   return 0;
@@ -101,34 +82,30 @@ argstr(int n, char **pp)
 
 // array of function pointers to handlers for all the syscalls
 static int (*syscalls[])(void) = {
-[SYS_chdir]        sys_chdir,
-[SYS_close]        sys_close,
-[SYS_clone]        sys_clone,
-[SYS_dup]          sys_dup,
-[SYS_exec]         sys_exec,
-[SYS_exit]         sys_exit,
-[SYS_fork]         sys_fork,
-[SYS_fstat]        sys_fstat,
-[SYS_getpid]       sys_getpid,
-[SYS_getpinfo]     sys_getpinfo,
-[SYS_getprocs]     sys_getprocs,
-[SYS_join]         sys_join,
-[SYS_kill]         sys_kill,
-[SYS_link]         sys_link,
-[SYS_mkdir]        sys_mkdir,
-[SYS_mknod]        sys_mknod,
-[SYS_open]         sys_open,
-[SYS_pipe]         sys_pipe,
-[SYS_read]         sys_read,
-[SYS_setpri]       sys_setpri,
-[SYS_sbrk]         sys_sbrk,
+[SYS_chdir]   sys_chdir,
+[SYS_close]   sys_close,
+[SYS_dup]     sys_dup,
+[SYS_exec]    sys_exec,
+[SYS_exit]    sys_exit,
+[SYS_fork]    sys_fork,
+[SYS_fstat]   sys_fstat,
+[SYS_getpid]  sys_getpid,
+[SYS_kill]    sys_kill,
+[SYS_link]    sys_link,
+[SYS_mkdir]   sys_mkdir,
+[SYS_mknod]   sys_mknod,
+[SYS_open]    sys_open,
+[SYS_pipe]    sys_pipe,
+[SYS_read]    sys_read,
+[SYS_sbrk]    sys_sbrk,
+[SYS_sleep]   sys_sleep,
+[SYS_unlink]  sys_unlink,
+[SYS_wait]    sys_wait,
+[SYS_write]   sys_write,
+[SYS_uptime]  sys_uptime,
+[SYS_getprocs] sys_getprocs,
 [SYS_shmem_access] sys_shmem_access,
-[SYS_shmem_count]  sys_shmem_count,
-[SYS_sleep]        sys_sleep,
-[SYS_unlink]       sys_unlink,
-[SYS_wait]         sys_wait,
-[SYS_write]        sys_write,
-[SYS_uptime]       sys_uptime,
+[SYS_shmem_count] sys_shmem_count,
 };
 
 // Called on a syscall trap. Checks that the syscall number (passed via eax)

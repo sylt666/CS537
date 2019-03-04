@@ -1,9 +1,9 @@
 #ifndef _USER_H_
 #define _USER_H_
 
+#include "processInfo.h"
+
 struct stat;
-struct pstat;
-typedef uint lock_t;
 
 // system calls
 int fork(void);
@@ -27,13 +27,11 @@ int getpid(void);
 char* sbrk(int);
 int sleep(int);
 int uptime(void);
-int getprocs(void);
-int setpri(int);
-int getpinfo(struct pstat*);
-void* shmem_access(int);
-int shmem_count(int);
-int clone(void (*)(void*), void*, void*);
-int join(void**);
+
+// 
+int getprocs(struct ProcessInfo*);
+void* shmem_access(int page_number);
+int shmem_count(int page_number);
 
 // user library functions (ulib.c)
 int stat(char*, struct stat*);
@@ -49,12 +47,4 @@ void* malloc(uint);
 void free(void*);
 int atoi(const char*);
 
-// thread library functions (threadlib.c)
-int thread_create(void (*)(void*), void*);
-int thread_join(void);
-void lock_init(volatile lock_t*);
-void lock_acquire(volatile lock_t*);
-void lock_release(volatile lock_t*);
-
 #endif // _USER_H_
-

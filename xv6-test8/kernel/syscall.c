@@ -17,9 +17,8 @@
 int
 fetchint(struct proc *p, uint addr, int *ip)
 {
-  if(addr >= p->sz || addr+4 > p->sz) 
+  if(addr >= p->sz || (addr+4 > p->sz && addr < p->lowestAddr))
     return -1;
-  
   *ip = *(int*)(addr);
   return 0;
 }
@@ -31,25 +30,13 @@ int
 fetchstr(struct proc *p, uint addr, char **pp)
 {
   char *s, *ep;
-
-  if(addr >= p->sz && addr < USERTOP - PGSIZE * p->alloc_count) 
+  if(addr >= p->sz && addr < p->lowestAddr)
     return -1;
-  
-  
   *pp = (char*)addr;
-  ep = (char*)p->sz;
-  // on shared page
-  if(addr >= USERTOP - PGSIZE * p -> alloc_count) {
-    for(s = *pp; s < (char*)USERTOP; s++)
-      if(*s == 0)
-        return s - *pp;
-  }
-  // not on shared page
-  else {
-    for(s = *pp; s < ep; s++)
-      if(*s == 0)
-        return s - *pp;
-  }
+  ep = (char*) USERTOP;
+  for(s = *pp; s < ep; s++)
+    if(*s == 0)
+      return s - *pp;
   return -1;
 }
 
@@ -68,18 +55,14 @@ argptr(int n, char **pp, int size)
 {
   int i;
   
-  if(argint(n, &i) < 0) 
+  if(argint(n, &i) < 0)
     return -1;
   if((uint)i < PGSIZE)
     return -1;
-    
-  if(((uint)i >= proc->sz || (uint)i+size > proc->sz) 
-  && ((uint) i >= proc->sz && (uint)i < USERTOP - PGSIZE * proc->alloc_count))
+  if(((uint)i >= proc->sz ||  (uint)i + size > proc->sz) && (uint)i < proc->lowestAddr)
     return -1;
-
-  if((uint)i + size >= USERTOP)
+  if((uint)i + size > USERTOP)
     return -1;
-    
   *pp = (char*)i;
   return 0;
 }
@@ -92,7 +75,7 @@ int
 argstr(int n, char **pp)
 {
   int addr;
-  if(argint(n, &addr) < 0) 
+  if(argint(n, &addr) < 0)
     return -1;
   return fetchstr(proc, addr, pp);
 }
@@ -124,7 +107,7 @@ static int (*syscalls[])(void) = {
 [SYS_write]   sys_write,
 [SYS_uptime]  sys_uptime,
 [SYS_shmem_access] sys_shmem_access,
-[SYS_shmem_count] sys_shmem_count,
+[SYS_shmem_count]  sys_shmem_count,
 };
 
 // Called on a syscall trap. Checks that the syscall number (passed via eax)
@@ -143,4 +126,3 @@ syscall(void)
     proc->tf->eax = -1;
   }
 }
-

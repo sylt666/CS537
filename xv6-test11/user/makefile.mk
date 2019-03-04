@@ -10,13 +10,14 @@ USER_PROGS := \
 	ln\
 	ls\
 	mkdir\
-	null\
-	shmem_test\
+	nullptr\
+	ps\
 	rm\
 	sh\
+	sharedmem_simpletests\
 	stressfs\
 	tester\
-	usertests\
+	usertests_2_1\
 	wc\
 	zombie
 
@@ -75,7 +76,6 @@ USER_LDFLAGS += --omagic
 USER_LDFLAGS += --entry=main
 
 # location in memory where the program will be loaded
-#Changed to 0x1000 from 0x0 for null dereference trap
 USER_LDFLAGS += --section-start=.text=0x1000
 
 user/bin:

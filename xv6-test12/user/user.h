@@ -1,8 +1,6 @@
 #ifndef _USER_H_
 #define _USER_H_
 
-#include "processInfo.h"
-
 struct stat;
 
 // system calls
@@ -27,11 +25,8 @@ int getpid(void);
 char* sbrk(int);
 int sleep(int);
 int uptime(void);
-
-// my stuff
-int getprocs(struct ProcessInfo*);
-void* shmem_access(int page_number);
-int shmem_count(int page_number);
+void* shmem_access(int);
+int shmem_count(int);
 
 // user library functions (ulib.c)
 int stat(char*, struct stat*);
@@ -48,3 +43,4 @@ void free(void*);
 int atoi(const char*);
 
 #endif // _USER_H_
+

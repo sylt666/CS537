@@ -1,7 +1,6 @@
-#include "spinlock.h"
-
 #ifndef _PROC_H_
 #define _PROC_H_
+
 // Segments in proc->gdt.
 // Also known to bootasm.S and trapasm.S
 #define SEG_KCODE 1  // kernel code
@@ -11,6 +10,8 @@
 #define SEG_UDATA 5  // user data+stack
 #define SEG_TSS   6  // this process's task state
 #define NSEGS     7
+
+struct ProcessInfo;
 
 // Per-CPU state
 struct cpu {
@@ -63,7 +64,7 @@ enum procstate { UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
 // Per-process state
 struct proc {
-  uint *sz;                     // Size of process memory (bytes)
+  uint sz;                     // Size of process memory (bytes)
   pde_t* pgdir;                // Page table
   char *kstack;                // Bottom of kernel stack for this process
   enum procstate state;        // Process state
@@ -76,15 +77,8 @@ struct proc {
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
-  int priority;                // Process priority
-  int lowPriorityTime;         // Running time in low priority
-  int highPriorityTime;        // Running time in high priority
-  int shmem_count;             // The number of shmem that this process has access to
-  void *shmem_access[4];       // Record the pa for each shmem
-  void *ustack;                // Bottom of user stack for this thread
-  
-  struct spinlock sz_lock;      // protecting lock when grow address space
-  int *reference_count;          // reference count for clone threads
+  int shmemused[NSHMPG];       // If a specific pages is being used
+
 };
 
 // Process memory is laid out contiguously, low addresses first:

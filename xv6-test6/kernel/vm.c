@@ -10,12 +10,12 @@ extern char data[];  // defined in data.S
 
 static pde_t *kpgdir;  // for use in scheduler()
 
+/* The total number of shared pages
+ * The counts for each process's shared memory access
+ * And the base address array */
 #define SHMEM_PAGES (4)
-int count_shmem[SHMEM_PAGES];
+int shmem_counts[SHMEM_PAGES];
 void *shmem_addr[SHMEM_PAGES];
-
-
-
 
 // Allocate one page table for the machine for the kernel address
 // space for scheduler processes.
@@ -238,7 +238,7 @@ allocuvm(pde_t *pgdir, uint oldsz, uint newsz)
   char *mem;
   uint a;
 
-  if(newsz > (USERTOP - ((proc->shmem+1)*PGSIZE)))
+  if(newsz > (USERTOP - ((proc->shmem + 1) * PGSIZE)))
     return 0;
   if(newsz < oldsz)
     return oldsz;
@@ -290,24 +290,23 @@ void
 freevm(pde_t *pgdir)
 {
   uint i;
-  
+
   if(pgdir == 0)
     panic("freevm: no pgdir");
 
-  deallocuvm(pgdir, USERTOP - ((proc->shmem+1)*PGSIZE),0);
-  //deallocuvm(pgdir, USERTOP, 0);
+  deallocuvm(pgdir, USERTOP - ((proc->shmem+1) * PGSIZE), 0);
+  
   for(i = 0; i < NPDENTRIES; i++){
     if(pgdir[i] & PTE_P)
       kfree((char*)PTE_ADDR(pgdir[i]));
   }
   kfree((char*)pgdir);
 
-  for(i = 0; i < 4; i++) {
-    if(proc->shmem_child[i] != NULL) {
-      count_shmem[i]--;
-    }
-  }
-
+  /* When memory is freed, the shmem_counts need to 
+   * be updated to their current value - 1 */
+  for(i = 0; i < SHMEM_PAGES; i++)
+    if(proc->shmem_child[i] != NULL)
+      shmem_counts[i]--;
 }
 
 // Given a parent process's page table, create a copy
@@ -334,12 +333,12 @@ copyuvm(pde_t *pgdir, uint sz)
     if(mappages(d, (void*)i, PGSIZE, PADDR(mem), PTE_W|PTE_U) < 0)
       goto bad;
   }
-  
-  for(i = 0; i < 4; i++) {
-    if(proc->shmems[i] != NULL) {
-      count_shmem[i]++;
-    }
-  }
+
+  /* Each time the parent process's page table is copied,
+   * the counts need to be updated to + 1 */
+  for(i = 0; i < SHMEM_PAGES; i++)
+    if(proc->shmems[i] != NULL)
+      shmem_counts[i]++;
 
   return d;
 
@@ -388,56 +387,55 @@ copyout(pde_t *pgdir, uint va, void *p, uint len)
   return 0;
 }
 
-
-void
-shmeminit(void)
+/* Initializes the shared memory.
+ * All of the counts for each page start at 0.
+ * Uses kalloc to allocate 4 pages, stores the address
+ * of each page in shmem_addr. If any of this fails, it
+ * will panic and quit */
+void shmeminit(void)
 {
   int i;
-  for(i = 0; i < SHMEM_PAGES; i++) {
-    count_shmem[i] = 0;
-    if((shmem_addr[i] = kalloc()) == 0) {
+  for(i = 0; i < SHMEM_PAGES; i++)
+  {
+    shmem_counts[i] = 0;
+    if((shmem_addr[i] = kalloc()) == 0)
+    {
       panic("shmeminit failed");
     }
-
   }
 }
 
-
-void *
-shmem_access(int page_number)
+/* Returns the count for the requested page number.
+ * This is done by simply returning the smem_counts element
+ * at the page number index */
+int shmem_count(int page_number)
 {
-
-  if(page_number < 0 || page_number >= SHMEM_PAGES) {
-    return NULL;
-  }
-
-  if(proc->shmems[page_number] != NULL) {
-    return proc->shmems[page_number];
-  }
-  
-  
-  void* mapping = (void *) (USERTOP - ((proc->shmem + 1) * PGSIZE));
-
-  if(proc->sz >= (int) mapping) {
-    return NULL;
-  }
-
-  if( mappages(proc->pgdir, mapping, PGSIZE, PADDR(shmem_addr[page_number]), PTE_W|PTE_U) < 0 ) {
-    return NULL;
-  }
-  proc->shmem++;
-  count_shmem[page_number]++;
-  proc->shmems[page_number] = mapping;
-
-  return mapping;
-}
-
-int
-shmem_count(int page_number)
-{
-  if(page_number < 0 || page_number >= SHMEM_PAGES) {
+  if(page_number < 0 || page_number >= SHMEM_PAGES)
     return -1;
-  } else {
-    return count_shmem[page_number];
-  }
+  
+  return shmem_counts[page_number];
+}
+
+/* Returns the address of the requested page.
+ * First checks if the requested page number is valid.
+ * Then checks to see if the requested page has been mapped already
+ *    if it has been mapped, it will simply return the associated address
+ *    otherwise, it will call the mappages function, and then return the address */
+void* shmem_access(int page_number)
+{
+  if(page_number < 0 || page_number >= SHMEM_PAGES)
+    return NULL;
+
+  if(proc->shmems[page_number] != NULL)
+    return proc->shmems[page_number];
+
+  void *pageMap = (void *) (USERTOP - ((proc->shmem + 1) * PGSIZE));
+  if(proc->sz >= (int)pageMap)
+    return NULL;
+  if( mappages(proc->pgdir, pageMap, PGSIZE, PADDR(shmem_addr[page_number]), PTE_W|PTE_U) < 0 )
+    return NULL;
+  proc->shmem++;
+  shmem_counts[page_number]++;
+  proc->shmems[page_number] = pageMap;
+  return pageMap;
 }

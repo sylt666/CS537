@@ -1,4 +1,3 @@
-
 # Kernel objects
 KERNEL_OBJECTS := \
 	bio.o\
@@ -143,4 +142,3 @@ kernel/%.d: kernel/%.c
 kernel/%.d: kernel/%.S
 	$(AS) $(CPPFLAGS) $(KERNEL_CPPFLAGS) $(CFLAGS) $(KERNEL_CFLAGS) \
 		-M -MG $< -MF $@ -MT $@ -MT $(<:.S=.o)
-

@@ -89,18 +89,24 @@ sys_uptime(void)
   return xticks;
 }
 
-
-int sys_shmem_count(void){
+/* Checks if the requested page number is valid and returns
+ * the result of the process's shared memory count in vm.c */
+int sys_shmem_count(void)
+{
   int page_number;
   if(argint(0, &page_number) < 0)
     return -1;
+
   return shmem_count(page_number);
 }
 
-
-int sys_shmem_access(void){
+/* Validates the page number and returns vm.c's shmem_access
+ * pointer to the page */
+int sys_shmem_access(void)
+{
   int page_number;
   if(argint(0, &page_number) < 0)
     return -1;
-  return (int) shmem_access(page_number);
+
+  return (int)shmem_access(page_number);
 }

@@ -53,11 +53,11 @@ OBJDUMP := objdump
 ################################################################################
 
 # If the makefile can't find QEMU, specify its path here
-QEMU := /home/software/qemu/bin/debug/native/i386-softmmu/qemu-system-i386
+#QEMU :=
 
 # Try to infer the correct QEMU if not specified
 ifndef QEMU
-#QEMU := $(shell if which qemu 1> /dev/null 2> /dev/null; \
+QEMU := $(shell if which qemu 1> /dev/null 2> /dev/null; \
 	then echo qemu; exit; \
 	else \
 	qemu=/u/c/s/cs537-2/ta/tools/qemu; \
@@ -68,7 +68,6 @@ ifndef QEMU
 	echo "*** PATH or have you tried setting the QEMU variable in " 1>&2; \
 	echo "*** Makefile?" 1>&2; \
 	echo "***" 1>&2; exit 1)
-QEMU := /home/software/qemu/bin/qemu-system-i386
 endif
 
 # try to generate a unique GDB port
@@ -94,7 +93,7 @@ include user/makefile.mk
 include tools/makefile.mk
 DEPS := $(KERNEL_DEPS) $(USER_DEPS) $(TOOLS_DEPS)
 CLEAN := $(KERNEL_CLEAN) $(USER_CLEAN) $(TOOLS_CLEAN) \
-	fs fs.img .gdbinit .bochsrc dist
+	fs fs.img .gdbinit .bochsrc dist runtests.log
 
 .PHONY: clean distclean run depend qemu qemu-nox qemu-gdb qemu-nox-gdb bochs
 

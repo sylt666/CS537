@@ -5,8 +5,7 @@
 #include "x86.h"
 #include "proc.h"
 #include "spinlock.h"
-
-
+#include "ProcessInfo.h"
 
 struct {
   struct spinlock lock;
@@ -55,11 +54,11 @@ found:
     return 0;
   }
   sp = p->kstack + KSTACKSIZE;
-  
+
   // Leave room for trap frame.
   sp -= sizeof *p->tf;
   p->tf = (struct trapframe*)sp;
-  
+
   // Set up new context to start executing at forkret,
   // which returns to trapret.
   sp -= 4;
@@ -69,10 +68,13 @@ found:
   p->context = (struct context*)sp;
   memset(p->context, 0, sizeof *p->context);
   p->context->eip = (uint)forkret;
-  p->shmem_total = 0;
-  for(int i = 0; i<4; i++) p->shmem[i]=NULL;
-  
-  
+
+  p->shmem_count = 0;
+  int i = 0;
+  for (; i < 4; i ++){
+    p->shmem_address[i] = NULL;
+  }
+
   return p;
 }
 
@@ -82,7 +84,7 @@ userinit(void)
 {
   struct proc *p;
   extern char _binary_initcode_start[], _binary_initcode_size[];
-  
+
   p = allocproc();
   acquire(&ptable.lock);
   initproc = p;
@@ -112,7 +114,7 @@ int
 growproc(int n)
 {
   uint sz;
-  
+
   sz = proc->sz;
   if(n > 0){
     if((sz = allocuvm(proc->pgdir, sz, sz + n)) == 0)
@@ -157,12 +159,13 @@ fork(void)
     if(proc->ofile[i])
       np->ofile[i] = filedup(proc->ofile[i]);
   np->cwd = idup(proc->cwd);
- 
+
   pid = np->pid;
   np->state = RUNNABLE;
   safestrcpy(np->name, proc->name, sizeof(proc->name));
-  np->shmem_total = proc->shmem_total;
-  for(int i = 0; i<4; i++) np->shmem[i] = proc->shmem[i];
+
+  copy_shmem(np, proc);
+
   return pid;
 }
 
@@ -203,6 +206,8 @@ exit(void)
     }
   }
 
+  freeshmem(proc);
+
   // Jump into the scheduler, never to return.
   proc->state = ZOMBIE;
   sched();
@@ -236,7 +241,6 @@ wait(void)
         p->parent = 0;
         p->name[0] = 0;
         p->killed = 0;
-		for(int i = 0; i<4; i++) proc->shmem_child[i] = proc->shmem[i];
         release(&ptable.lock);
         return pid;
       }
@@ -330,7 +334,7 @@ forkret(void)
 {
   // Still holding ptable.lock from scheduler.
   release(&ptable.lock);
-  
+
   // Return to "caller", actually trapret (see allocproc).
 }
 
@@ -433,7 +437,7 @@ procdump(void)
   struct proc *p;
   char *state;
   uint pc[10];
-  
+
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
     if(p->state == UNUSED)
       continue;
@@ -451,3 +455,26 @@ procdump(void)
   }
 }
 
+// Return the number of processes in the process table
+// Return -1 if none
+int
+getprocs(struct ProcessInfo* processInfoTable) {
+  int count = 0;
+  int i;
+  struct proc *currentproc;
+  for (currentproc = ptable.proc, i = 0; currentproc < &ptable.proc[NPROC] && i < NPROC; currentproc++, i++) {
+    if (currentproc->state == UNUSED)
+      continue;
+    processInfoTable[i].pid = currentproc->pid;
+    // The parent process id of the first process is meaningless. For this value, print -1.
+    processInfoTable[i].ppid = i == 0 ? -1 : currentproc->parent->pid;
+    processInfoTable[i].state = currentproc->state;
+    processInfoTable[i].sz = currentproc->sz;
+    int j;
+    for (j = 0; j < 16; j++)
+      processInfoTable[i].name[j] = currentproc->name[j];
+    // Increment number of running processes found
+    count++;
+  }
+  return count;
+}

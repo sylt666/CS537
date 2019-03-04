@@ -62,7 +62,10 @@ mainc(void)
   cinit();
   sti();           // enable inturrupts
   userinit();      // first user process
-  shmeminit();
+
+  /* Initializes the shared memory when the os boots up */
+  shmeminit();     
+  
   scheduler();     // start running processes
 }
 

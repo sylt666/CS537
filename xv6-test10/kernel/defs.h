@@ -7,9 +7,9 @@ struct file;
 struct inode;
 struct pipe;
 struct proc;
-struct pstat;
 struct spinlock;
 struct stat;
+struct ProcessInfo;
 
 // bio.c
 void            binit(void);
@@ -110,10 +110,6 @@ void            userinit(void);
 int             wait(void);
 void            wakeup(void*);
 void            yield(void);
-int             getprocs(void);
-void            getpinfo(struct pstat*);
-int             clone(void (*)(void*), void*, void*);
-int             join(void**);
 
 // swtch.S
 void            swtch(struct context**, struct context*);
@@ -166,17 +162,21 @@ pde_t*          setupkvm(void);
 char*           uva2ka(pde_t*, char*);
 int             allocuvm(pde_t*, uint, uint);
 int             deallocuvm(pde_t*, uint, uint);
-void            freevm(pde_t*, struct proc*);
+void            freevm(pde_t*);
 void            inituvm(pde_t*, char*, uint);
 int             loaduvm(pde_t*, char*, struct inode*, uint, uint);
-pde_t*          copyuvm(pde_t*, uint, void**, void**);
+pde_t*          copyuvm(pde_t*, uint);
 void            switchuvm(struct proc*);
 void            switchkvm(void);
 int             copyout(pde_t*, uint, void*, uint);
-void            shmeminit(void);
-void*           shmem_access(int);
-int             shmem_count(int);
-void            shmemcopy(void**);
+// vm.c for shareed memory
+void* 			shmem_access(int page_number);
+void 			shmem_free(struct proc*);
+int 			shmem_count(int page_number);
+void 			shmem_fork_child(struct proc*);
+
+// ps.c
+int 			getprocs(struct ProcessInfo*);
 
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))

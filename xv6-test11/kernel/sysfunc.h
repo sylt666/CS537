@@ -16,6 +16,12 @@ int sys_mkdir(void);
 int sys_mknod(void);
 int sys_open(void);
 int sys_pipe(void);
+int sys_ps(void);
+int sys_getprocs(void);
+int sys_shmem_access(void);
+int sys_shmem_count(void);
+int sys_shmem_share_with_child(void);
+int sys_shmem_leave(void);
 int sys_read(void);
 int sys_sbrk(void);
 int sys_sleep(void);
@@ -23,10 +29,5 @@ int sys_unlink(void);
 int sys_wait(void);
 int sys_write(void);
 int sys_uptime(void);
-
-/* System call handlers for the shmem_access and 
- * shmem_count functions */
-int sys_shmem_access(void);
-int sys_shmem_count(void);
 
 #endif // _SYSFUNC_H_

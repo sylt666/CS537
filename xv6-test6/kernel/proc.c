@@ -68,11 +68,11 @@ found:
   memset(p->context, 0, sizeof *p->context);
   p->context->eip = (uint)forkret;
 
+  /* Cleans up p's shmems array for each of the pages */
   p->shmem = 0;
   int i;
-  for(i = 0; i < 4; i++) {
+  for(i = 0; i < 4; i++)
     p->shmems[i] = NULL;
-  }
 
   return p;
 }
@@ -163,10 +163,11 @@ fork(void)
   np->state = RUNNABLE;
   safestrcpy(np->name, proc->name, sizeof(proc->name));
 
+  /* For forking, duplicates the parent's shared memory
+   * for the child */
   np->shmem = proc->shmem;
-  for(i = 0; i < 4; i++) {
+  for(i = 0; i < 4; i++)
     np->shmems[i] = proc->shmems[i];
-  }
 
   return pid;
 }
@@ -179,7 +180,7 @@ exit(void)
 {
   struct proc *p;
   int fd;
-  
+
   if(proc == initproc)
     panic("init exiting");
 
@@ -236,12 +237,15 @@ wait(void)
         kfree(p->kstack);
         p->kstack = 0;
 
-  int k;
-  for(k = 0; k < 4; k++) {
-    proc->shmem_child[k] = p->shmems[k];
-  }
-  
-  freevm(p->pgdir);
+
+        /* When waiting for a child process to exit */
+        int f;
+        for(f = 0; f < 4; f++)
+          proc->shmem_child[f] = proc->shmems[f];
+
+      
+
+        freevm(p->pgdir);
         p->state = UNUSED;
         p->pid = 0;
         p->parent = 0;

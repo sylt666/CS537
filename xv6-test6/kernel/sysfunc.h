@@ -23,6 +23,9 @@ int sys_unlink(void);
 int sys_wait(void);
 int sys_write(void);
 int sys_uptime(void);
+
+/* System call handlers for the shmem_access and 
+ * shmem_count functions */
 int sys_shmem_access(void);
 int sys_shmem_count(void);
 

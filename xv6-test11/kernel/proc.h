@@ -1,3 +1,5 @@
+#include "spinlock.h"
+
 #ifndef _PROC_H_
 #define _PROC_H_
 // Segments in proc->gdt.
@@ -74,12 +76,20 @@ struct proc {
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
-  
-  /* Adds to the process struct data to keep track of its shared memory */
-  void *shmems[4];              
-  int shmem;
-  void *shmem_child[4];
+  int shared_page_number;      // Shared Page Number (0-4)
 };
+
+struct SharedPage {
+  char *va; // pointer to the page of shared memory
+  char *pa; // physical address
+  int ref_count; // number of references to shared memory
+};
+
+// Struct for keeping track of shared memory
+struct {
+  struct spinlock lock;
+  struct SharedPage pages[4];
+} sharedtable;
 
 // Process memory is laid out contiguously, low addresses first:
 //   text

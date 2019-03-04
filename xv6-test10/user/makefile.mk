@@ -17,8 +17,10 @@ USER_PROGS := \
 	usertests\
 	wc\
 	zombie\
-  join2\
-  size
+	ps\
+	usertests_2_1\
+	usertests_2_2\
+	sharedmem_simpletests
 
 USER_PROGS := $(addprefix user/, $(USER_PROGS))
 
@@ -27,8 +29,7 @@ USER_LIBS := \
 	ulib.o\
 	usys.o\
 	printf.o\
-	umalloc.o\
-  threadlib.o
+	umalloc.o
 
 USER_LIBS := $(addprefix user/, $(USER_LIBS))
 
@@ -105,4 +106,3 @@ user/%.d: user/%.c
 user/%.d: user/%.S
 	$(CC) $(CPPFLAGS) $(USER_CPPFLAGS) $(ASFLAGS) $(USER_ASFLAGS) \
 		-M -MG $< -MF $@ -MT $@ -MT $(<:.S=.o)
-

@@ -74,9 +74,11 @@ struct proc {
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
-  void *shmems[4];
-  int shmem;                    //number of shmem pages
-  void *shmem_child[4];         //shmem pages for child process
+  
+  /* Adds to the process struct data to keep track of its shared memory */
+  void *shmems[4];              
+  int shmem;
+  void *shmem_child[4];
 };
 
 // Process memory is laid out contiguously, low addresses first:

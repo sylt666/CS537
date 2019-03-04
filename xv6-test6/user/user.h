@@ -25,6 +25,9 @@ int getpid(void);
 char* sbrk(int);
 int sleep(int);
 int uptime(void);
+
+/* Adds the system calls to the user.h function 
+ * so that user programs can call them */
 void* shmem_access(int);
 int shmem_count(int);
 
@@ -43,4 +46,3 @@ void free(void*);
 int atoi(const char*);
 
 #endif // _USER_H_
-

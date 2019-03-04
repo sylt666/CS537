@@ -5,7 +5,6 @@
 #include "x86.h"
 #include "proc.h"
 #include "spinlock.h"
-#include "processInfo.h"
 
 struct {
   struct spinlock lock;
@@ -37,23 +36,15 @@ allocproc(void)
   char *sp;
 
   acquire(&ptable.lock);
-  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
     if(p->state == UNUSED)
       goto found;
-  }
   release(&ptable.lock);
   return 0;
 
 found:
   p->state = EMBRYO;
   p->pid = nextpid++;
-
-  //TODO: make this into function
-  // set all to 0 indicating it is not using any of them
-  // p->shmemused[0] = 0;
-  // p->shmemused[1] = 0;
-  // p->shmemused[2] = 0;
-  // p->shmemused[3] = 0;
   release(&ptable.lock);
 
   // Allocate kernel stack if possible.
@@ -62,11 +53,11 @@ found:
     return 0;
   }
   sp = p->kstack + KSTACKSIZE;
-
+  
   // Leave room for trap frame.
   sp -= sizeof *p->tf;
   p->tf = (struct trapframe*)sp;
-
+  
   // Set up new context to start executing at forkret,
   // which returns to trapret.
   sp -= 4;
@@ -77,6 +68,12 @@ found:
   memset(p->context, 0, sizeof *p->context);
   p->context->eip = (uint)forkret;
 
+  p->shmem = 0;
+  int i;
+  for(i = 0; i < 4; i++) {
+    p->shmems[i] = NULL;
+  }
+
   return p;
 }
 
@@ -86,7 +83,7 @@ userinit(void)
 {
   struct proc *p;
   extern char _binary_initcode_start[], _binary_initcode_size[];
-
+  
   p = allocproc();
   acquire(&ptable.lock);
   initproc = p;
@@ -107,12 +104,6 @@ userinit(void)
   p->cwd = namei("/");
 
   p->state = RUNNABLE;
-
-  p->shmemused[0] = 0;
-  p->shmemused[1] = 0;
-  p->shmemused[2] = 0;
-  p->shmemused[3] = 0;
-
   release(&ptable.lock);
 }
 
@@ -122,7 +113,7 @@ int
 growproc(int n)
 {
   uint sz;
-
+  
   sz = proc->sz;
   if(n > 0){
     if((sz = allocuvm(proc->pgdir, sz, sz + n)) == 0)
@@ -160,9 +151,6 @@ fork(void)
   np->parent = proc;
   *np->tf = *proc->tf;
 
-  // some function
-  shmem_fork_child(np);
-
   // Clear %eax so that fork returns 0 in the child.
   np->tf->eax = 0;
 
@@ -170,10 +158,16 @@ fork(void)
     if(proc->ofile[i])
       np->ofile[i] = filedup(proc->ofile[i]);
   np->cwd = idup(proc->cwd);
-
+ 
   pid = np->pid;
   np->state = RUNNABLE;
   safestrcpy(np->name, proc->name, sizeof(proc->name));
+
+  np->shmem = proc->shmem;
+  for(i = 0; i < 4; i++) {
+    np->shmems[i] = proc->shmems[i];
+  }
+
   return pid;
 }
 
@@ -185,12 +179,9 @@ exit(void)
 {
   struct proc *p;
   int fd;
-
+  
   if(proc == initproc)
     panic("init exiting");
-
-  // release the shared mempages
-  shmem_free(proc);
 
   // Close all open files.
   for(fd = 0; fd < NOFILE; fd++){
@@ -244,7 +235,13 @@ wait(void)
         pid = p->pid;
         kfree(p->kstack);
         p->kstack = 0;
-        freevm(p->pgdir);
+
+  int k;
+  for(k = 0; k < 4; k++) {
+    proc->shmem_child[k] = p->shmems[k];
+  }
+  
+  freevm(p->pgdir);
         p->state = UNUSED;
         p->pid = 0;
         p->parent = 0;
@@ -343,7 +340,7 @@ forkret(void)
 {
   // Still holding ptable.lock from scheduler.
   release(&ptable.lock);
-
+  
   // Return to "caller", actually trapret (see allocproc).
 }
 
@@ -446,7 +443,7 @@ procdump(void)
   struct proc *p;
   char *state;
   uint pc[10];
-
+  
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
     if(p->state == UNUSED)
       continue;
@@ -465,25 +462,3 @@ procdump(void)
 }
 
 
-int
-getprocs(struct ProcessInfo processInfoTable[NPROC])
-{
-
-    int numProcsses = 0;
-    acquire(&ptable.lock);
-    struct proc* p;
-    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
-        if(p->state != UNUSED){
-            // populate the info table
-            processInfoTable[numProcsses].pid = p->pid;
-            processInfoTable[numProcsses].ppid = p->parent->pid;
-            processInfoTable[numProcsses].state = p->state;
-            processInfoTable[numProcsses].sz = p->sz;
-            safestrcpy(processInfoTable[numProcsses].name, p->name, 16);
-            numProcsses++;
-        }
-    }
-    release(&ptable.lock);
-
-    return numProcsses;
-}

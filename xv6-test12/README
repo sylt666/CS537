@@ -1,4 +1,40 @@
-dfadsxv6 is a re-implementation of Dennis Ritchie's and Ken Thompson's Unix
+####Part A
+- change address from 0 to 4096 for user code in the user `makefile.mk`
+- change `sz = 4096` in exec.c
+- change the for loop initial value to 4096 in `fork()`
+
+####Part B
+- `shmeminit` runs once only in the OS not once for each processor
+- define 4 shared pages `SHMEM_PAGES`
+- init the count `count_shmem`
+- allocate memory for the pages using kalloc in `shmeminit`
+- add the two system calls. shmem_count and shmem_access - init them on the user and kernel side and in `defs.h`
+- shmem_count  - in vm.c - returns the counter variable initialized in shmeminit
+- in the per-process struct in `proc.h` add the number of child processes `shmem_child` and the number of shared pages in use 
+`shmem`
+- in shmem_access - 
+    - if theres a shared page already mapped - return it
+    - otherwise set up the mapping using mappages
+    - increment counts, map and then return mapping
+- in the freevm function - decrement the number of shmem_child for each of the shared pages post free-ing 
+- in the `fork` function - replicate the shared pages for the new process created by fork
+- adjust according to `USERTOP` in the functions from`syscall.c`
+
+
+Notes
+
+- think about clean up 
+    - when a process exits, its AS is freed
+    - go through PT and free all the physical pages associated with the process that has `exit()`
+    - BUT we have a shared page, which shouldn't be deallocated
+    - in the `wait` function we can see that it calls `freevm` for the process' `pgdir`
+- sz marks end of the heap
+- the shared pages go at the end of the AS 
+- heap growing towards the shared pages might run into them 
+- fork creates a copy of the AS. but now the AS has shared pages, we don't want to copy those
+- exec overwrites the AS - can overwrite the shared pages
+
+xv6 is a re-implementation of Dennis Ritchie's and Ken Thompson's Unix
 Version 6 (v6).  xv6 loosely follows the structure and style of v6,
 but is implemented for a modern x86-based multiprocessor using ANSI C.
 

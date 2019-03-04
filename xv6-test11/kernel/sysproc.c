@@ -5,6 +5,33 @@
 #include "mmu.h"
 #include "proc.h"
 #include "sysfunc.h"
+#include "ProcessInfo.h"
+
+// Fetch the nth word-sized system call argument as a ptr to a 
+// ProcessInfo. Return that address.
+int
+argpt(int n, struct ProcessInfo **pi)
+{
+  int i;
+  
+  if(argint(n, &i) < 0)
+    return -1;
+  *pi = (struct ProcessInfo*)i;
+  return 0;
+}
+
+// Fetch the nth word-sized system call argument as a ptr to a 
+// proc. Return that address.
+int
+argproc(int n, struct proc **p)
+{
+  int i;
+  
+  if(argint(n, &i) < 0)
+    return -1;
+  *p = (struct proc*)i;
+  return 0;
+}
 
 int
 sys_fork(void)
@@ -89,24 +116,67 @@ sys_uptime(void)
   return xticks;
 }
 
-/* Checks if the requested page number is valid and returns
- * the result of the process's shared memory count in vm.c */
-int sys_shmem_count(void)
+int
+sys_ps(void)
+{
+  return ps();
+}
+
+int
+sys_getprocs(void)
+{
+  struct ProcessInfo *procTable;
+  if(argpt(0, &procTable) < 0)
+    return -1;
+  return getprocs(procTable);
+}
+
+int
+sys_shmem_access(void)
 {
   int page_number;
+  if(argint(0, &page_number) < 0)
+    return -1;
+  if(page_number < 0)
+    return -1;
+  char *pa = shmem_access(page_number);
+  return (int)pa;
+}
+
+int
+sys_shmem_count(void)
+{
+  int page_number;
+
   if(argint(0, &page_number) < 0)
     return -1;
 
   return shmem_count(page_number);
 }
 
-/* Validates the page number and returns vm.c's shmem_access
- * pointer to the page */
-int sys_shmem_access(void)
+int
+sys_shmem_share_with_child(void)
 {
-  int page_number;
-  if(argint(0, &page_number) < 0)
+  struct proc *parent;
+  struct proc *child;
+
+  if(argproc(0, &parent) < 0)
+    return -1;
+  if(argproc(1, &child) < 0)
     return -1;
 
-  return (int)shmem_access(page_number);
+  return shmem_share_with_child(parent, child);
+}
+int
+sys_shmem_leave(void)
+{
+  int page_number;
+  struct proc *p;
+
+  if(argproc(0, &p) < 0)
+    return -1;
+  if(argint(1, &page_number) < 0)
+    return -1;
+
+  return shmem_leave(p, page_number);
 }

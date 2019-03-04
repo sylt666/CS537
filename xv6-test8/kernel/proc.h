@@ -74,9 +74,9 @@ struct proc {
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
-	// for shared pages
-  int shared_pages_va[4];   // page number of shared pages accessed by this process
-  int alloc_count;
+  void* pageAddr[4];	       // virtual page address
+  int pageAccesses;            // number pages the page accesses
+  int lowestAddr;              
 };
 
 // Process memory is laid out contiguously, low addresses first:

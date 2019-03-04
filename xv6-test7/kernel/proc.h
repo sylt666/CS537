@@ -9,6 +9,7 @@
 #define SEG_UDATA 5  // user data+stack
 #define SEG_TSS   6  // this process's task state
 #define NSEGS     7
+#include "ProcessInfo.h"
 
 // Per-CPU state
 struct cpu {
@@ -74,11 +75,11 @@ struct proc {
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
-  int shmem_total;			   // number of pages
-  void* shmem[4]; 			   // pages
-  void* shmem_child[4];
+  void *shmem_address[4];      // store the address of shared page if that page has been requested
+  int shmem_count;             // number of share pages that have been requested
 };
 
+int getprocs(struct ProcessInfo*);
 // Process memory is laid out contiguously, low addresses first:
 //   text
 //   original data and bss

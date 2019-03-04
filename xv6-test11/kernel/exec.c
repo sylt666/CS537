@@ -32,11 +32,9 @@ exec(char *path, char **argv)
     goto bad;
 
   // Load program into memory.
-
-  /* Starts at 4096 instead of 0 so that the null dereference 
-   * will trigger an interrupt */
-  sz = 4096; 
-  
+  // project 2: make the first page inaccessible to a program
+  // being loaded into memory.
+  sz = PGSIZE-1;
   for(i=0, off=elf.phoff; i<elf.phnum; i++, off+=sizeof(ph)){
     if(readi(ip, (char*)&ph, off, sizeof(ph)) != sizeof(ph))
       goto bad;
@@ -91,16 +89,6 @@ exec(char *path, char **argv)
   proc->tf->eip = elf.entry;  // main
   proc->tf->esp = sp;
   switchuvm(proc);
-
-  /* Sets the shmem_child and shmem for the process struct
-   * for each of the 4 shared pages */
-  proc->shmem = 0;
-  for(i = 0; i < 4; i++)
-  {
-    proc->shmem_child[i] = proc->shmems[i];
-    proc->shmems[i] = NULL;
-  }
-
   freevm(oldpgdir);
 
   return 0;

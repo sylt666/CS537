@@ -1,6 +1,5 @@
 #ifndef _PROC_H_
 #define _PROC_H_
-
 // Segments in proc->gdt.
 // Also known to bootasm.S and trapasm.S
 #define SEG_KCODE 1  // kernel code
@@ -10,8 +9,6 @@
 #define SEG_UDATA 5  // user data+stack
 #define SEG_TSS   6  // this process's task state
 #define NSEGS     7
-
-struct ProcessInfo;
 
 // Per-CPU state
 struct cpu {
@@ -77,7 +74,9 @@ struct proc {
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
-  int shmemused[4];            // If a specific pages is being used
+  void *shmems[4];
+  int shmem;                    //number of shmem pages
+  void *shmem_child[4];         //shmem pages for child process
 };
 
 // Process memory is laid out contiguously, low addresses first:

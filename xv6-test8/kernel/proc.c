@@ -53,7 +53,7 @@ found:
     return 0;
   }
   sp = p->kstack + KSTACKSIZE;
-  
+  p->lowestAddr = USERTOP;  
   // Leave room for trap frame.
   sp -= sizeof *p->tf;
   p->tf = (struct trapframe*)sp;
@@ -84,15 +84,15 @@ userinit(void)
   if((p->pgdir = setupkvm()) == 0)
     panic("userinit: out of memory?");
   inituvm(p->pgdir, _binary_initcode_start, (int)_binary_initcode_size);
-  p->sz = PGSIZE;
+  p->sz = PGSIZE + PGSIZE;
   memset(p->tf, 0, sizeof(*p->tf));
   p->tf->cs = (SEG_UCODE << 3) | DPL_USER;
   p->tf->ds = (SEG_UDATA << 3) | DPL_USER;
   p->tf->es = p->tf->ds;
   p->tf->ss = p->tf->ds;
   p->tf->eflags = FL_IF;
-  p->tf->esp = PGSIZE;
-  p->tf->eip = 0;  // beginning of initcode.S
+  p->tf->esp = PGSIZE + PGSIZE;
+  p->tf->eip = PGSIZE;  // beginning of initcode.S
 
   safestrcpy(p->name, "initcode", sizeof(p->name));
   p->cwd = namei("/");
@@ -107,9 +107,10 @@ int
 growproc(int n)
 {
   uint sz;
-  
   sz = proc->sz;
   if(n > 0){
+    if((sz+n) > proc->lowestAddr)
+      return -1;
     if((sz = allocuvm(proc->pgdir, sz, sz + n)) == 0)
       return -1;
   } else if(n < 0){
@@ -135,26 +136,29 @@ fork(void)
     return -1;
 
   // Copy process state from p.
-  if((np->pgdir = copyuvm(proc->pgdir, proc->sz, np)) == 0){
+  if((np->pgdir = copyuvm(proc->pgdir, proc->sz)) == 0){
     kfree(np->kstack);
     np->kstack = 0;
     np->state = UNUSED;
     return -1;
   }
-
   np->sz = proc->sz;
   np->parent = proc;
   *np->tf = *proc->tf;
-
+  np->pageAccesses = proc->pageAccesses;
+  np->lowestAddr = proc->lowestAddr;
+  int j;
+  for(j = 0; j < 4; j++){
+    np->pageAddr[j] = proc->pageAddr[j];
+  }
   // Clear %eax so that fork returns 0 in the child.
   np->tf->eax = 0;
-  
+
   for(i = 0; i < NOFILE; i++)
     if(proc->ofile[i])
       np->ofile[i] = filedup(proc->ofile[i]);
   np->cwd = idup(proc->cwd);
-  
-  
+ 
   pid = np->pid;
   np->state = RUNNABLE;
   safestrcpy(np->name, proc->name, sizeof(proc->name));
@@ -197,6 +201,11 @@ exit(void)
         wakeup1(initproc);
     }
   }
+  int j;
+  for(j = 0; j < 4; j++){
+    if(proc->pageAddr[j] != 0)
+      shmem_close(j);
+  }
 
   // Jump into the scheduler, never to return.
   proc->state = ZOMBIE;
@@ -225,14 +234,8 @@ wait(void)
         pid = p->pid;
         kfree(p->kstack);
         p->kstack = 0;
-        deallocuvm(p->pgdir, USERTOP - p->alloc_count * PGSIZE, 0);
-        // freevm(p->pgdir);
-        int i;
-        for(i = 0; i < 4; ++i) {
-            if(p->shared_pages_va[i] != 0) {
-              shmem_set_count(i);
-            }
-        }
+        if(p->pageAccesses == 0)
+          freevm(p->pgdir);
         p->state = UNUSED;
         p->pid = 0;
         p->parent = 0;
@@ -451,6 +454,3 @@ procdump(void)
     cprintf("\n");
   }
 }
-
-
-

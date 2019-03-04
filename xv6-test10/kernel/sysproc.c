@@ -5,7 +5,7 @@
 #include "mmu.h"
 #include "proc.h"
 #include "sysfunc.h"
-#include "pstat.h"
+#include "processInfo.h"
 
 int
 sys_fork(void)
@@ -50,7 +50,7 @@ sys_sbrk(void)
 
   if(argint(0, &n) < 0)
     return -1;
-  addr = *(proc->sz);
+  addr = proc->sz;
   if(growproc(n) < 0)
     return -1;
   return addr;
@@ -61,7 +61,7 @@ sys_sleep(void)
 {
   int n;
   uint ticks0;
-  
+
   if(argint(0, &n) < 0)
     return -1;
   acquire(&tickslock);
@@ -83,81 +83,63 @@ int
 sys_uptime(void)
 {
   uint xticks;
-  
+
   acquire(&tickslock);
   xticks = ticks;
   release(&tickslock);
   return xticks;
 }
 
-// return the number of existing processes
 int
 sys_getprocs(void)
 {
-  return getprocs();
+
+    char* processInfoTable;
+    if (argptr(0, &processInfoTable, NPROC * sizeof(struct ProcessInfo)) < 0) {
+        return -1;
+    }
+
+    int numProcessesGotten = getprocs((struct ProcessInfo*) processInfoTable);
+
+    return numProcessesGotten;
 }
 
-// set the priority of the process
 int
-sys_setpri(void)
-{
-  int num = 0;
-  argint(0, &num);
-  // Illegal parameter
-  if (num != 1 && num != 2)
-    return -1;
-  proc->priority = num;
-  return 0;
+check_sharedmem_range(int page_number) {
+  if (page_number >= NSHMPG || page_number < 0) {
+    return 0;
+  }
+  return 1;
 }
 
-// Get the pstat information
-int
-sys_getpinfo(void) 
-{
-  struct pstat* pstatTable = NULL;
-  argptr(0, (void*)&pstatTable, sizeof(struct pstat*));
-  if (pstatTable == NULL) 
-    return -1;
-  getpinfo(pstatTable);
-  return 0;
-}
-
-// Share memory access
 int
 sys_shmem_access(void)
 {
+
   int page_number;
-  argint(0, &page_number);
-  return (int)shmem_access(page_number);
+
+  if(argint(0, &page_number) < 0)
+    return NULL;
+
+  if (check_sharedmem_range(page_number) == 0) {
+    return NULL;
+  }
+
+  return (int) shmem_access(page_number);;
 }
 
-// Return the number of processes which have the access to the given shared memory
 int
 sys_shmem_count(void)
 {
-  int page_number = 0;
-  argint(0, &page_number);
-  if(page_number < 0 || page_number > 3)
+
+  int page_number;
+
+  if(argint(0, &page_number) < 0)
     return -1;
-  return shmem_count(page_number);
-}
 
-int
-sys_clone(void)
-{
-  void (*fcn)(void*), *arg, *stack;
-  
-  argptr(0, (void*)&fcn, sizeof(void (*)(void*))); 
-  argptr(1, (void*)&arg, sizeof(void*));
-  argptr(2, (void*)&stack, sizeof(void*));
-  
-  return clone(fcn, arg, stack);
-}
+  if (check_sharedmem_range(page_number) == 0) {
+    return -1;
+  }
 
-int
-sys_join(void) 
-{
-  void **stack;
-  argptr(0, (void*)&stack, sizeof(void**));
-  return join(stack);
+  return shmem_count(page_number);;
 }

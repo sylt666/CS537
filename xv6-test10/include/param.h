@@ -13,7 +13,9 @@
 #define NDEV         10  // maximum major device number
 #define ROOTDEV       1  // device number of file system root disk
 #define USERTOP  0xA0000 // end of user address space
+#define SHMEMBOTTOM 0x9c000 // the bottom the the shared mem in user memory
 #define PHYSTOP  0x1000000 // use phys mem up to here as free pool
 #define MAXARG       32  // max exec arguments
+#define NSHMPG        4  // number of share memory pages
 
 #endif // _PARAM_H_

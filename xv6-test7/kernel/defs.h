@@ -139,7 +139,6 @@ int             fetchint(struct proc*, uint, int*);
 int             fetchstr(struct proc*, uint, char**);
 void            syscall(void);
 
-
 // timer.c
 void            timerinit(void);
 
@@ -169,10 +168,11 @@ pde_t*          copyuvm(pde_t*, uint);
 void            switchuvm(struct proc*);
 void            switchkvm(void);
 int             copyout(pde_t*, uint, void*, uint);
-void*			shmem_access(int);
-int				shmem_count(int);
-void			shmem_initialize(void);
-
+void            shmeminit(void);
+void            freeshmem(struct proc*);
+void*           shmem_access(int);
+int             shmem_count(int);
+void            copy_shmem(struct proc*, struct proc*);
 
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))

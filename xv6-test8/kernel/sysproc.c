@@ -90,21 +90,19 @@ sys_uptime(void)
 }
 
 int
-sys_shmem_access(void) {
-  int page_num;
-  // get page_num
-  if(argint(0, &page_num) < 0) 
+sys_shmem_access(void)
+{
+  int pgInfo;
+  if((argint(0, &pgInfo)) == -1)
     return -1;
-  // given currently running process
-  return (int)shmem_access(page_num, proc);
+  return (int) shmem_access(pgInfo);
 }
 
-int sys_shmem_count(void) {
-  int page_num;
-  // illegal page number
-  if(argint(0, &page_num) < 0) 
+int
+sys_shmem_count(void)
+{
+  int pgInfo;
+  if((argint(0, &pgInfo)) == -1)
     return -1;
-  
-  // call shmem_count in proc.c
-  return shmem_count(page_num);
+  return shmem_count(pgInfo);
 }

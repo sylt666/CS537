@@ -17,7 +17,7 @@
 int
 fetchint(struct proc *p, uint addr, int *ip)
 {
-  if((addr >= p->sz || addr+4 > p->sz) && (addr < (USERTOP - (p->shmem*PGSIZE))))
+  if(addr >= p->sz || addr+4 > p->sz)
     return -1;
   *ip = *(int*)(addr);
   return 0;
@@ -31,10 +31,10 @@ fetchstr(struct proc *p, uint addr, char **pp)
 {
   char *s, *ep;
 
-  if((addr >= p->sz) && (addr < (USERTOP - (p->shmem * PGSIZE))))
+  if(addr >= p->sz)
     return -1;
   *pp = (char*)addr;
-  ep = (char*)(addr < p->sz ? p->sz : USERTOP);
+  ep = (char*)p->sz;
   for(s = *pp; s < ep; s++)
     if(*s == 0)
       return s - *pp;
@@ -58,9 +58,7 @@ argptr(int n, char **pp, int size)
   
   if(argint(n, &i) < 0)
     return -1;
-  if(i < PGSIZE)
-    return -1;
-  if(((uint)i >= proc->sz || (uint)i+size > proc->sz) && (((uint) i < (USERTOP - (proc->shmem*PGSIZE))) || ((uint)size > USERTOP)))
+  if((uint)i >= proc->sz || (uint)i+size > proc->sz)
     return -1;
   *pp = (char*)i;
   return 0;
@@ -84,29 +82,32 @@ argstr(int n, char **pp)
 
 // array of function pointers to handlers for all the syscalls
 static int (*syscalls[])(void) = {
-[SYS_chdir]   sys_chdir,
-[SYS_close]   sys_close,
-[SYS_dup]     sys_dup,
-[SYS_exec]    sys_exec,
-[SYS_exit]    sys_exit,
-[SYS_fork]    sys_fork,
-[SYS_fstat]   sys_fstat,
-[SYS_getpid]  sys_getpid,
-[SYS_kill]    sys_kill,
-[SYS_link]    sys_link,
-[SYS_mkdir]   sys_mkdir,
-[SYS_mknod]   sys_mknod,
-[SYS_open]    sys_open,
-[SYS_pipe]    sys_pipe,
-[SYS_read]    sys_read,
-[SYS_sbrk]    sys_sbrk,
-[SYS_sleep]   sys_sleep,
-[SYS_unlink]  sys_unlink,
-[SYS_wait]    sys_wait,
-[SYS_write]   sys_write,
-[SYS_uptime]  sys_uptime,
+[SYS_chdir]        sys_chdir,
+[SYS_close]        sys_close,
+[SYS_dup]          sys_dup,
+[SYS_exec]         sys_exec,
+[SYS_exit]         sys_exit,
+[SYS_fork]         sys_fork,
+[SYS_fstat]        sys_fstat,
+[SYS_getpid]       sys_getpid,
+[SYS_kill]         sys_kill,
+[SYS_link]         sys_link,
+[SYS_mkdir]        sys_mkdir,
+[SYS_mknod]        sys_mknod,
+[SYS_open]         sys_open,
+[SYS_pipe]         sys_pipe,
+[SYS_ps]           sys_ps,
+[SYS_getprocs]     sys_getprocs,
+[SYS_read]         sys_read,
+[SYS_sbrk]         sys_sbrk,
 [SYS_shmem_access] sys_shmem_access,
-[SYS_shmem_count] sys_shmem_count,
+[SYS_shmem_count]  sys_shmem_count,
+[SYS_shmem_leave]  sys_shmem_leave,
+[SYS_sleep]        sys_sleep,
+[SYS_unlink]       sys_unlink,
+[SYS_wait]         sys_wait,
+[SYS_write]        sys_write,
+[SYS_uptime]       sys_uptime,
 };
 
 // Called on a syscall trap. Checks that the syscall number (passed via eax)

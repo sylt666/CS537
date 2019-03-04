@@ -32,7 +32,7 @@ exec(char *path, char **argv)
     goto bad;
 
   // Load program into memory.
-  sz = 4096;
+  sz = 0;
   for(i=0, off=elf.phoff; i<elf.phnum; i++, off+=sizeof(ph)){
     if(readi(ip, (char*)&ph, off, sizeof(ph)) != sizeof(ph))
       goto bad;
@@ -86,15 +86,15 @@ exec(char *path, char **argv)
   proc->sz = sz;
   proc->tf->eip = elf.entry;  // main
   proc->tf->esp = sp;
-  switchuvm(proc);
-  freevm(oldpgdir);
-  
-  proc->shmem_total = 0;
-  for(i = 0; i < 4; i++) {
-    proc->shmem_child[i] = proc->shmem[i];
-    proc->shmem[i] = NULL;
+  proc->shmem_count = 0;
+  int j = 0;
+  for (; j < 4; j ++){
+    proc->shmem_address[j] = NULL;
   }
+  switchuvm(proc);
+
   freevm(oldpgdir);
+
   return 0;
 
  bad:

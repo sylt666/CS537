@@ -53,11 +53,9 @@ OBJDUMP := objdump
 ################################################################################
 
 # If the makefile can't find QEMU, specify its path here
-#QEMU :=
-
 # Try to infer the correct QEMU if not specified
 ifndef QEMU
-QEMU := $(shell if which qemu 1> /dev/null 2> /dev/null; \
+#QEMU := $(shell if which qemu 1> /dev/null 2> /dev/null; \
 	then echo qemu; exit; \
 	else \
 	qemu=/u/c/s/cs537-2/ta/tools/qemu; \
@@ -68,6 +66,7 @@ QEMU := $(shell if which qemu 1> /dev/null 2> /dev/null; \
 	echo "*** PATH or have you tried setting the QEMU variable in " 1>&2; \
 	echo "*** Makefile?" 1>&2; \
 	echo "***" 1>&2; exit 1)
+QEMU := /home/software/qemu/bin/qemu-system-i386
 endif
 
 # try to generate a unique GDB port
@@ -80,7 +79,7 @@ QEMUGDB := $(shell if $(QEMU) -help | grep -q '^-gdb'; \
 
 # number of CPUs to emulate in QEMU
 ifndef CPUS
-CPUS := 1
+CPUS := 2
 endif
 
 QEMUOPTS := -hdb fs.img xv6.img -smp $(CPUS)

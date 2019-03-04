@@ -49,6 +49,7 @@ mainc(void)
   uartinit();      // serial port
   kvmalloc();      // initialize the kernel page table
   pinit();         // process table
+  shmeminit();
   tvinit();        // trap vectors
   binit();         // buffer cache
   fileinit();      // file table
@@ -62,10 +63,6 @@ mainc(void)
   cinit();
   sti();           // enable inturrupts
   userinit();      // first user process
-
-  /* Initializes the shared memory when the os boots up */
-  shmeminit();     
-  
   scheduler();     // start running processes
 }
 
