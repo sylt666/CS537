@@ -425,8 +425,6 @@ int grow_stack(uint addr) {
 
 // this function is used to map a virtual address to the shared physical address
 void *shmget(int page_number) {
-  // cprintf("proc->numsh: %d\n", proc->numsh);
-
   if (proc->shm[page_number] == 0) {
     proc->numsh = proc->numsh + PGSIZE;
     mappages(proc->pgdir, (void*) proc->numsh, PGSIZE, sharedpg[page_number], PTE_W|PTE_U);

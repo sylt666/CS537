@@ -7,11 +7,13 @@
 #include "syscall.h"
 #include "sysfunc.h"
 
-// User code makes a system call with INT T_SYSCALL.
-// System call number in %eax.
-// Arguments on the stack, from the user call to the C
-// library system call function. The saved user %esp points
-// to a saved program counter, and then the first argument.
+/**
+User code makes a system call with INT T_SYSCALL.
+System call number in %eax.
+Arguments on the stack, from the user call to the C
+library system call function. The saved user %esp points
+to a saved program counter, and then the first argument.
+*/
 
 // Fetch the int at addr from process p.
 int
@@ -54,9 +56,6 @@ fetchint(struct proc *p, uint addr, int *ip)
     return -1; 
   }
 
-  // original setting of xv6
-  // if(addr >= p->sz || addr+4 > p->sz) return -1;
-
   *ip = *(int*)(addr);
   return 0;
 }
@@ -93,9 +92,6 @@ fetchstr(struct proc *p, uint addr, char **pp)
     return -1; 
   }
 
-  // original setting of xv6
-  // if(addr >= p->sz) return -1;
-
   // where the string starts
   *pp = (char*)addr;
   // if addr is in code/heap then last legal addr is p->sz.  
@@ -130,11 +126,6 @@ argptr(int n, char **pp, int size)
   if(argint(n, &i) < 0)
     return -1;
 
-  // ==============================================================================================
-  // check whether os can assign enough memory space for user's nth argument
-  // ==============================================================================================
-
-  // cprintf("argptr i: %d, code_end: %d, sz: %d, stack_end: %d\n", (uint) i, proc->code_end, proc->sz, proc->stack_end);
   // if i is in the first unmapping pages, return -1
   if ((uint) i < PGSIZE) {
     cprintf("argptr: proc %s, pid %d 4 unmapping pages \n", proc->name, proc->pid);
@@ -171,13 +162,6 @@ argptr(int n, char **pp, int size)
     return -1; 
   }
 
-  // original setting of xv6
-  // if((uint)i >= proc->sz || (uint)i+size > proc->sz) return -1;
-
-  // ==============================================================================================
-  // check done
-  // ==============================================================================================
-  
   //assign the output pointer char **pp to the address hold by i.
   *pp = (char*) i;
   return 0;
@@ -242,11 +226,13 @@ syscall(void)
   }
 }
 
-// this fucntion is system call shared memory get (shmget)
-// int sys_shmget(void) is used to read inputs from user mode into kernel
-// in kernel mode, we use (int) shmget(page_number) to actuall do something
-// return 0 if the argument doesn't exist
-// return 0 if the argument is not 0, 1, or 2, because there are up to 3 pages that can be shared
+/**
+this fucntion is system call shared memory get (shmget)
+int sys_shmget(void) is used to read inputs from user mode into kernel
+in kernel mode, we use (int) shmget(page_number) to actuall do something
+return 0 if the argument doesn't exist
+return 0 if the argument is not 0, 1, or 2, because there are up to 3 pages that can be shared
+*/
 int sys_shmget(void) {
   int page_number;
   if (argint(0, &page_number) < 0) 

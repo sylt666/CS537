@@ -47,13 +47,10 @@ trap(struct trapframe *tf)
   if (tf->trapno == T_PGFLT) {
     // rcr2() returns the virtual address that raises T_PGFLT
     uint addr = rcr2();
-    // cprintf("\ntrap.c addr: %d, sz+pgsize*5: %d, pgroundown esp: %d\n", addr, proc->sz+PGSIZE*5, proc->stack_end);
     if (addr >= proc->sz+PGSIZE*5 && 
         addr < proc->stack_end &&
         addr >= proc->stack_end - PGSIZE) {
-      // cprintf("need to grow stack! \n");
       if (!grow_stack(addr)) {
-        // cprintf("stack grown \n");
         return;
       }
     }
