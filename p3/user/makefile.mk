@@ -16,8 +16,7 @@ USER_PROGS := \
 	tester\
 	usertests\
 	wc\
-	zombie\
-	null
+	zombie
 
 USER_PROGS := $(addprefix user/, $(USER_PROGS))
 
@@ -103,3 +102,4 @@ user/%.d: user/%.c
 user/%.d: user/%.S
 	$(CC) $(CPPFLAGS) $(USER_CPPFLAGS) $(ASFLAGS) $(USER_ASFLAGS) \
 		-M -MG $< -MF $@ -MT $@ -MT $(<:.S=.o)
+

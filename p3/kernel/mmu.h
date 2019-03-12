@@ -3,7 +3,6 @@
 // This file contains definitions for the
 // x86 memory management unit (MMU).
 
-#define MAPPED 0x4000
 // Eflags register
 #define FL_CF           0x00000001      // Carry Flag
 #define FL_PF           0x00000004      // Parity Flag
@@ -218,3 +217,4 @@ struct gatedesc {
 }
 
 #endif // _MMU_H_
+

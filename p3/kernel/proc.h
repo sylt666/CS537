@@ -61,10 +61,12 @@ enum procstate { UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
 // Per-process state
 struct proc {
+  uint shm[3];                 // store mappings between shared physical and virtual address
+  uint numsh;                  // number of shared pages
+  uint stack_end;              // address position where allocated stack pages end
   uint sz;                     // Size of process memory (bytes)
   pde_t* pgdir;                // Page table
   char *kstack;                // Bottom of kernel stack for this process
-  uint ustack;
   enum procstate state;        // Process state
   volatile int pid;            // Process ID
   struct proc *parent;         // Parent process
@@ -77,10 +79,11 @@ struct proc {
   char name[16];               // Process name (debugging)
 };
 
-// Process memory is laid out contiguously, low addresses first:
-//   text
-//   original data and bss
-//   fixed-size stack
-//   expandable heap
+// for original xv6 setting
+// process memory is laid out contiguously, low addresses first: 
+// text
+// original data and bss
+// fixed-size stack
+// expandable heap
 
 #endif // _PROC_H_

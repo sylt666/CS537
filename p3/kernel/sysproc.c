@@ -50,9 +50,6 @@ sys_sbrk(void)
   if(argint(0, &n) < 0)
     return -1;
   addr = proc->sz;
-  if (proc -> ustack < (PGROUNDUP(n) + proc->sz + 5 * PGSIZE)) {
-    return -1;
-  }
   if(growproc(n) < 0)
     return -1;
   return addr;
@@ -63,7 +60,7 @@ sys_sleep(void)
 {
   int n;
   uint ticks0;
-
+  
   if(argint(0, &n) < 0)
     return -1;
   acquire(&tickslock);
@@ -85,7 +82,7 @@ int
 sys_uptime(void)
 {
   uint xticks;
-
+  
   acquire(&tickslock);
   xticks = ticks;
   release(&tickslock);

@@ -109,7 +109,6 @@ void            userinit(void);
 int             wait(void);
 void            wakeup(void*);
 void            yield(void);
-int             growustack(void);
 
 // swtch.S
 void            swtch(struct context**, struct context*);
@@ -155,6 +154,8 @@ void            uartintr(void);
 void            uartputc(int);
 
 // vm.c
+void*           shmget(int);
+int             grow_stack(uint addr);
 void            seginit(void);
 void            kvmalloc(void);
 void            vmenable(void);
