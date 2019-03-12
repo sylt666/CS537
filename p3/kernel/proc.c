@@ -84,16 +84,15 @@ userinit(void)
   if((p->pgdir = setupkvm()) == 0)
     panic("userinit: out of memory?");
   inituvm(p->pgdir, _binary_initcode_start, (int)_binary_initcode_size);
-  p->sz = PGSIZE;
+  p->sz = PGSIZE + ADD;
   memset(p->tf, 0, sizeof(*p->tf));
   p->tf->cs = (SEG_UCODE << 3) | DPL_USER;
   p->tf->ds = (SEG_UDATA << 3) | DPL_USER;
   p->tf->es = p->tf->ds;
   p->tf->ss = p->tf->ds;
   p->tf->eflags = FL_IF;
-  p->tf->esp = PGSIZE;
-  p->tf->eip = 0;  // beginning of initcode.S
-
+  p->tf->esp = PGSIZE + ADD;
+  p->tf->eip = ADD;  // beginning of initcode.S
   safestrcpy(p->name, "initcode", sizeof(p->name));
   p->cwd = namei("/");
 
@@ -107,8 +106,11 @@ int
 growproc(int n)
 {
   uint sz;
-  
   sz = proc->sz;
+
+  if (sz + n > proc->stack_end - PGSIZE*5)
+    return -1;
+  
   if(n > 0){
     if((sz = allocuvm(proc->pgdir, sz, sz + n)) == 0)
       return -1;
@@ -141,6 +143,11 @@ fork(void)
     np->state = UNUSED;
     return -1;
   }
+  np->stack_end = proc->stack_end; // top virtual address of the top page of stack
+  np->shm[0] = proc->shm[0]; // inherit parent's shm
+  np->shm[1] = proc->shm[1];
+  np->shm[2] = proc->shm[2];
+  np->numsh = proc->numsh;
   np->sz = proc->sz;
   np->parent = proc;
   *np->tf = *proc->tf;

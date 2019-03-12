@@ -8,7 +8,8 @@
 
 extern char data[];  // defined in data.S
 
-static pde_t *kpgdir;  // for use in scheduler()
+static pde_t *kpgdir; // for use in scheduler()
+static pte_t sharedpg[3] = {NULL, NULL, NULL}; // shared page 0, 1, 2
 
 // Allocate one page table for the machine for the kernel address
 // space for scheduler processes.
@@ -195,8 +196,20 @@ inituvm(pde_t *pgdir, char *init, uint sz)
     panic("inituvm: more than a page");
   mem = kalloc();
   memset(mem, 0, PGSIZE);
-  mappages(pgdir, 0, PGSIZE, PADDR(mem), PTE_W|PTE_U);
+  mappages(pgdir, (void*) ADD, PGSIZE, PADDR(mem), PTE_W|PTE_U);
   memmove(mem, init, sz);
+
+  // before the very first process, we don't have any physical address space that can be shared
+  // we initialize the three physical address spaces here so they can be shared by mapping to 
+  // different virtual pages of different process
+  if (sharedpg[0] == NULL) {
+    for (int i=0; i<3; i++) {
+      char *mem;
+      mem = kalloc();
+      memset(mem, 0, PGSIZE);
+      sharedpg[i] = PADDR(mem);
+    }
+  }
 }
 
 // Load a program segment into pgdir.  addr must be page-aligned
@@ -286,7 +299,12 @@ freevm(pde_t *pgdir)
 
   if(pgdir == 0)
     panic("freevm: no pgdir");
-  deallocuvm(pgdir, USERTOP, 0);
+  // in order to free physical memory pages, we have to use the virtual address of a process to
+  // find the corresponding phyical address first, otherwise, we don't know which physical address
+  // is the one that we want to free
+  // also, we don't want to free the shared memory pages, because they belong to other processes,
+  // so we only free the virtual address from USERTOP to ADD, which is 0x4000
+  deallocuvm(pgdir, USERTOP, ADD);
   for(i = 0; i < NPDENTRIES; i++){
     if(pgdir[i] & PTE_P)
       kfree((char*)PTE_ADDR(pgdir[i]));
@@ -306,7 +324,7 @@ copyuvm(pde_t *pgdir, uint sz)
 
   if((d = setupkvm()) == 0)
     return 0;
-  for(i = 0; i < sz; i += PGSIZE){
+  for(i = 0 + ADD; i < sz; i += PGSIZE){
     if((pte = walkpgdir(pgdir, (void*)i, 0)) == 0)
       panic("copyuvm: pte should exist");
     if(!(*pte & PTE_P))
@@ -318,6 +336,20 @@ copyuvm(pde_t *pgdir, uint sz)
     if(mappages(d, (void*)i, PGSIZE, PADDR(mem), PTE_W|PTE_U) < 0)
       goto bad;
   }
+  
+  for(i = proc->stack_end; i < USERTOP; i+=PGSIZE) {
+    if((pte = walkpgdir(pgdir, (void*)i, 0)) == 0)
+      panic("copyuvm: pte should exist");
+    if(!(*pte & PTE_P))
+      panic("copyuvm: page not present");
+    pa = PTE_ADDR(*pte);
+    if((mem = kalloc()) == 0)
+      goto bad;
+    memmove(mem, (char*)pa, PGSIZE);
+    if(mappages(d, (void*)i, PGSIZE, PADDR(mem), PTE_W|PTE_U) < 0)
+      goto bad;
+  }
+
   return d;
 
 bad:
@@ -363,4 +395,41 @@ copyout(pde_t *pgdir, uint va, void *p, uint len)
     va = va0 + PGSIZE;
   }
   return 0;
+}
+
+int grow_stack(uint addr) {
+  // page directory of current process
+  pde_t* pgdir;
+  pgdir = proc->pgdir;
+  
+  // new stack top, which is an address pointer
+  uint newST; 
+
+  //check if there is space to grow
+  if (PGROUNDUP(proc->sz) >= proc->stack_end - PGSIZE*5)
+    goto bad;
+
+  // allocate a page of physical address 
+  newST = proc->stack_end - PGSIZE;
+  if (allocuvm(pgdir, newST, newST + PGSIZE) == 0)
+      goto bad;
+
+  // update curST
+  proc->stack_end = newST;
+  
+  return 0;
+
+  bad:
+  return -1;
+}
+
+void *shmget(int page_number) {
+
+  if (proc->shm[page_number] == 0) {
+    proc->numsh = proc->numsh + PGSIZE;
+    mappages(proc->pgdir, (void*) proc->numsh, PGSIZE, sharedpg[page_number], PTE_W|PTE_U);
+    proc->shm[page_number] = proc->numsh;
+  }
+
+  return (void *) proc->shm[page_number];
 }

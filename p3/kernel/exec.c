@@ -32,7 +32,7 @@ exec(char *path, char **argv)
     goto bad;
 
   // Load program into memory.
-  sz = 0;
+  sz = ADD;
   for(i=0, off=elf.phoff; i<elf.phnum; i++, off+=sizeof(ph)){
     if(readi(ip, (char*)&ph, off, sizeof(ph)) != sizeof(ph))
       goto bad;
@@ -48,13 +48,17 @@ exec(char *path, char **argv)
   iunlockput(ip);
   ip = 0;
 
-  // Allocate a one-page stack at the next page boundary
+  // where code ends and heap starts
   sz = PGROUNDUP(sz);
-  if((sz = allocuvm(pgdir, sz, sz + PGSIZE)) == 0)
+
+  // sp is where the first page of stack ends, and USERTOP is where it starts
+  sp = USERTOP - PGSIZE;
+  
+  // allocate a one-page stack for the last page, which ends at USERTOP
+  if((sp = allocuvm(pgdir, sp, sp + PGSIZE)) == 0)
     goto bad;
 
   // Push argument strings, prepare rest of stack in ustack.
-  sp = sz;
   for(argc = 0; argv[argc]; argc++) {
     if(argc >= MAXARG)
       goto bad;
@@ -84,8 +88,13 @@ exec(char *path, char **argv)
   oldpgdir = proc->pgdir;
   proc->pgdir = pgdir;
   proc->sz = sz;
-  proc->tf->eip = elf.entry;  // main
-  proc->tf->esp = sp;
+  proc->tf->eip = elf.entry;                // main
+  proc->tf->esp = sp;                       // stack end
+  proc->stack_end = (uint) PGROUNDDOWN(sp); // allocated stack page end
+  proc->shm[0] = 0; // shm[] stores whether a shared physical address is mapping 
+  proc->shm[1] = 0; // values of shm[0], shm[1], and shm[2] could be 0x1000, 0x2000, 0x3000
+  proc->shm[2] = 0; // but they won't be duplicated
+  proc->numsh = 0; // how many shared pages does this process has, from 0 to 3
   switchuvm(proc);
   freevm(oldpgdir);
 

@@ -44,6 +44,18 @@ trap(struct trapframe *tf)
     return;
   }
 
+  if (tf->trapno == T_PGFLT) {
+    // rcr2() returns the virtual address that raises T_PGFLT
+    uint addr = rcr2();
+    if (addr >= proc->sz+PGSIZE*5 && 
+        addr < proc->stack_end &&
+        addr >= proc->stack_end - PGSIZE) {
+      if (!grow_stack(addr)) {
+        return;
+      }
+    }
+  }
+
   switch(tf->trapno){
   case T_IRQ0 + IRQ_TIMER:
     if(cpu->id == 0){

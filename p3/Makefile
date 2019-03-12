@@ -53,7 +53,7 @@ OBJDUMP := objdump
 ################################################################################
 
 # If the makefile can't find QEMU, specify its path here
-#QEMU :=
+#QEMU := 
 
 # Try to infer the correct QEMU if not specified
 ifndef QEMU
@@ -80,7 +80,7 @@ QEMUGDB := $(shell if $(QEMU) -help | grep -q '^-gdb'; \
 
 # number of CPUs to emulate in QEMU
 ifndef CPUS
-CPUS := 2
+CPUS := 1
 endif
 
 QEMUOPTS := -hdb fs.img xv6.img -smp $(CPUS)
