@@ -22,7 +22,6 @@ main(int argc, char *argv[])
 
   /* grow the heap a bit (move sz around) */
   assert((int)sbrk(4096 * 60) != -1);
-
   /* at zero */
   str = (char*) 0x0;
   assert(open(str, O_WRONLY|O_CREATE) == -1);
@@ -58,8 +57,8 @@ main(int argc, char *argv[])
 
   uint STACK = 159*4096;
   uint USERTOP = 160*4096;
-
-  /* below stack */
+  //
+  // /* below stack */
   str = (char*) STACK-1;
   assert(open(str, O_WRONLY|O_CREATE) == -1);
 
@@ -98,4 +97,3 @@ main(int argc, char *argv[])
   printf(1, "TEST PASSED\n");
   exit();
 }
-
