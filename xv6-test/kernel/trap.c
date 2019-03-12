@@ -44,20 +44,6 @@ trap(struct trapframe *tf)
     return;
   }
 
-  if (tf->trapno == T_PGFLT) {
-    uint addr = rcr2();
-    // cprintf("\ntrap.c addr: %d, sz+pgsize*5: %d, pgroundown esp: %d\n", addr, proc->sz+PGSIZE*5, proc->stack_end);
-    if (addr >= proc->sz+PGSIZE*5 && 
-        addr < proc->stack_low &&
-        addr >= proc->stack_low - PGSIZE) {
-      // cprintf("need to grow stack! \n");
-      if (!grow_stack(addr)) {
-        // cprintf("stack grown \n");
-        return;
-      }
-    }
-  }
-
   switch(tf->trapno){
   case T_IRQ0 + IRQ_TIMER:
     if(cpu->id == 0){
@@ -89,7 +75,22 @@ trap(struct trapframe *tf)
             cpu->id, tf->cs, tf->eip);
     lapiceoi();
     break;
-   
+  case T_PGFLT:
+	//If stack has room to grow down, and fault is within one page
+	if(proc->stack - proc->sz > 5*PGSIZE && proc->stack - rcr2() <= PGSIZE){
+		//Then allocate one more page to the stack
+    		allocuvm(proc->pgdir, proc->stack-PGSIZE, proc->stack);
+		proc->stack = proc->stack - PGSIZE;
+	}
+	else { 
+        //If something's gone wrong
+		cprintf("pid %d %s: trap %d err %d on cpu %d "
+		        "eip 0x%x addr 0x%x--kill proc\n",
+        	proc->pid, proc->name, tf->trapno, tf->err, cpu->id, tf->eip,
+              		rcr2());
+	proc->killed = 1;
+	}
+  	break;
   default:
     if(proc == 0 || (tf->cs&3) == 0){
       // In kernel, it must be our mistake.

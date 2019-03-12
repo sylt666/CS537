@@ -15,8 +15,12 @@ USER_PROGS := \
 	stressfs\
 	tester\
 	usertests\
+	nulltest\
 	wc\
-	zombie
+	bounds_str\
+	zombie\
+	shmget_test\
+	shmem_bound
 
 USER_PROGS := $(addprefix user/, $(USER_PROGS))
 

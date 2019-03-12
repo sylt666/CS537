@@ -44,12 +44,11 @@ sys_getpid(void)
 int
 sys_sbrk(void)
 {
-  int addr;
-  int n;
-
+  int addr, n;
   if(argint(0, &n) < 0)
     return -1;
-  addr = proc->sz;
+  
+  addr = proc->sz; //start of heap?
   if(growproc(n) < 0)
     return -1;
   return addr;
@@ -74,6 +73,16 @@ sys_sleep(void)
   }
   release(&tickslock);
   return 0;
+}
+
+int
+sys_shmget(void)
+{
+  int n;
+  if(argint(0, &n) < 0)
+    return -1;
+  return (int)shmget(n);
+  
 }
 
 // return how many clock tick interrupts have occurred

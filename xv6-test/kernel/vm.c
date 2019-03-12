@@ -86,7 +86,7 @@ mappages(pde_t *pgdir, void *la, uint size, uint pa, int perm)
     pte = walkpgdir(pgdir, a, 1);
     if(pte == 0)
       return -1;
-    if(*pte & PTE_P)
+    if(pa > 3*PGSIZE && *pte & PTE_P)
       panic("remap");
     *pte = pa | perm | PTE_P;
     if(a == last)
@@ -95,6 +95,29 @@ mappages(pde_t *pgdir, void *la, uint size, uint pa, int perm)
     pa += PGSIZE;
   }
   return 0;
+}
+
+void*
+shmget(int page_number)
+{
+        uint* failVal = (void*)NULL;
+        //Check that page_number is legal (between 0, 1, or 2)
+        if(page_number < 0 || page_number > 2)
+                return failVal;
+
+        uint intAddr = (PGSIZE*(1+page_number));
+	void *addr = (void*)intAddr;
+
+	cprintf("Page requested: %d, addr requested: %d, ptr given: %d\n", page_number, intAddr, addr);
+
+        if(mappages(proc->pgdir, addr, PGSIZE, intAddr, PTE_W|PTE_U) == -1){
+		cprintf("mappages FAILURE!\n");
+		return failVal;
+	}
+
+	cprintf("addr returned = %d\n", addr);
+
+        return addr;
 }
 
 // The mappings from logical to linear are one to one (i.e.,
@@ -107,6 +130,7 @@ mappages(pde_t *pgdir, void *la, uint size, uint pa, int perm)
 // 
 // setupkvm() and exec() set up every page table like this:
 //   0..640K          : user memory (text, data, stack, heap)
+//  ^ we start this at 4k now go away pls
 //   640K..1M         : mapped direct (for IO space)
 //   1M..end          : mapped direct (for the kernel's text and data)
 //   end..PHYSTOP     : mapped direct (kernel heap and user pages)
@@ -195,7 +219,7 @@ inituvm(pde_t *pgdir, char *init, uint sz)
     panic("inituvm: more than a page");
   mem = kalloc();
   memset(mem, 0, PGSIZE);
-  mappages(pgdir, (void*) ADD, PGSIZE, PADDR(mem), PTE_W|PTE_U);
+  mappages(pgdir, 0, PGSIZE, PADDR(mem), PTE_W|PTE_U);
   memmove(mem, init, sz);
 }
 
@@ -297,7 +321,7 @@ freevm(pde_t *pgdir)
 // Given a parent process's page table, create a copy
 // of it for a child.
 pde_t*
-copyuvm(pde_t *pgdir, uint sz)
+copyuvm(pde_t *pgdir, uint sz, uint s)
 {
   pde_t *d;
   pte_t *pte;
@@ -306,25 +330,12 @@ copyuvm(pde_t *pgdir, uint sz)
 
   if((d = setupkvm()) == 0)
     return 0;
-  for(i = 0 + ADD; i < sz; i += PGSIZE){
+  for(i = 4*PGSIZE; i < sz; i += PGSIZE){
     if((pte = walkpgdir(pgdir, (void*)i, 0)) == 0)
       panic("copyuvm: pte should exist");
     if(!(*pte & PTE_P))
       panic("copyuvm: page not present");
-    pa = PTE_ADDR(*pte);
-    if((mem = kalloc()) == 0)
-      goto bad;
-    memmove(mem, (char*)pa, PGSIZE);
-    if(mappages(d, (void*)i, PGSIZE, PADDR(mem), PTE_W|PTE_U) < 0)
-      goto bad;
-  }
-  
-  for(i = proc->stack_low; i < USERTOP; i+=PGSIZE) {
-    if((pte = walkpgdir(pgdir, (void*)i, 0)) == 0)
-      panic("copyuvm: pte should exist");
-    if(!(*pte & PTE_P))
-      panic("copyuvm: page not present");
-    pa = PTE_ADDR(*pte);
+    pa = PTE_ADDR(*pte); //why is this here and not below? we may never know
     if((mem = kalloc()) == 0)
       goto bad;
     memmove(mem, (char*)pa, PGSIZE);
@@ -332,6 +343,24 @@ copyuvm(pde_t *pgdir, uint sz)
       goto bad;
   }
 
+  //checks
+  if((pte = walkpgdir(pgdir, (void*)(USERTOP-PGSIZE), 1)) == 0)
+    panic("broken pte");
+  if(!(*pte & PTE_P))
+    panic("broken page");
+  
+  //does it need to be before?
+  pa = PTE_ADDR(*pte);
+  if((mem = kalloc()) == 0)
+    goto bad;
+  
+  //copy stuffs
+  //changed order from above and compressed because why not, might not work
+  memmove(mem, (char*)pa, PGSIZE);
+  if(mappages(d, (void*)USERTOP-PGSIZE, PGSIZE, PADDR(mem), PTE_W|PTE_U) < 0)
+    goto bad;
+
+  //everything worked out good
   return d;
 
 bad:
@@ -376,36 +405,5 @@ copyout(pde_t *pgdir, uint va, void *p, uint len)
     buf += n;
     va = va0 + PGSIZE;
   }
-  return 0;
-}
-
-int grow_stack(uint addr) {
-  // page directory of current process
-  pde_t* pgdir;
-  pgdir = proc->pgdir;
-  
-  // new stack top, which is an address pointer
-  uint newST; 
-
-  //check if there is space to grow
-  if (PGROUNDUP(proc->sz) >= proc->stack_low - PGSIZE*5)
-    goto bad;
-
-  // allocate a page of physical address 
-  newST = proc->stack_low - PGSIZE;
-  if (allocuvm(pgdir, newST, newST + PGSIZE) == 0)
-      goto bad;
-
-  // update curST
-  proc->stack_low = newST;
-  
-  return 0;
-
-  bad:
-  return -1;
-}
-
-void* shmget(int page_number)
-{
   return 0;
 }
