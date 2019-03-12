@@ -40,7 +40,7 @@ seginit(void)
 
   lgdt(c->gdt, sizeof(c->gdt));
   loadgs(SEG_KCPU << 3);
-
+  
   // Initialize cpu-local storage.
   cpu = c;
   proc = 0;
@@ -64,7 +64,7 @@ walkpgdir(pde_t *pgdir, const void *va, int create)
     // Make sure all those PTE_P bits are zero.
     memset(pgtab, 0, PGSIZE);
     // The permissions here are overly generous, but they can
-    // be further restricted by the permissions in the page table
+    // be further restricted by the permissions in the page table 
     // entries, if necessary.
     *pde = PADDR(pgtab) | PTE_P | PTE_W | PTE_U;
   }
@@ -79,22 +79,14 @@ mappages(pde_t *pgdir, void *la, uint size, uint pa, int perm)
 {
   char *a, *last;
   pte_t *pte;
-  // int* bar;
-  // bar = (int*) la;
-  // if ((int)bar == 1048576) {
-  //   cprintf("!!!!!!!!!!!!\n");
-  //   cprintf("!!!!!!!!!!!!\n");
-  //   cprintf("!!!!!!!!!!!!\n");
-  // }
-  // cprintf("!!!!!!!!!!!!:  %p\n", (int*) la);
-
+  
   a = PGROUNDDOWN(la);
   last = PGROUNDDOWN(la + size - 1);
   for(;;){
     pte = walkpgdir(pgdir, a, 1);
     if(pte == 0)
       return -1;
-    if(*pte & PTE_P)
+    if(pa > 3*PGSIZE && *pte & PTE_P)
       panic("remap");
     *pte = pa | perm | PTE_P;
     if(a == last)
@@ -105,6 +97,29 @@ mappages(pde_t *pgdir, void *la, uint size, uint pa, int perm)
   return 0;
 }
 
+void*
+shmget(int page_number)
+{
+        uint* failVal = (void*)NULL;
+        //Check that page_number is legal (between 0, 1, or 2)
+        if(page_number < 0 || page_number > 2)
+                return failVal;
+
+        uint intAddr = (PGSIZE*(1+page_number));
+	void *addr = (void*)intAddr;
+
+	cprintf("Page requested: %d, addr requested: %d, ptr given: %d\n", page_number, intAddr, addr);
+
+        if(mappages(proc->pgdir, addr, PGSIZE, intAddr, PTE_W|PTE_U) == -1){
+		cprintf("mappages FAILURE!\n");
+		return failVal;
+	}
+
+	cprintf("addr returned = %d\n", addr);
+
+        return addr;
+}
+
 // The mappings from logical to linear are one to one (i.e.,
 // segmentation doesn't do anything).
 // There is one page table per process, plus one that's used
@@ -112,9 +127,10 @@ mappages(pde_t *pgdir, void *la, uint size, uint pa, int perm)
 // A user process uses the same page table as the kernel; the
 // page protection bits prevent it from using anything other
 // than its memory.
-//
+// 
 // setupkvm() and exec() set up every page table like this:
 //   0..640K          : user memory (text, data, stack, heap)
+//  ^ we start this at 4k now go away pls
 //   640K..1M         : mapped direct (for IO space)
 //   1M..end          : mapped direct (for the kernel's text and data)
 //   end..PHYSTOP     : mapped direct (kernel heap and user pages)
@@ -192,18 +208,18 @@ switchuvm(struct proc *p)
   popcli();
 }
 
-// Load the initcode into address 0x4000 of pgdir.
+// Load the initcode into address 0 of pgdir.
 // sz must be less than a page.
 void
 inituvm(pde_t *pgdir, char *init, uint sz)
 {
   char *mem;
-
+  
   if(sz >= PGSIZE)
     panic("inituvm: more than a page");
   mem = kalloc();
   memset(mem, 0, PGSIZE);
-  mappages(pgdir, (void*)MAPPED, PGSIZE, PADDR(mem), PTE_W|PTE_U);
+  mappages(pgdir, 0, PGSIZE, PADDR(mem), PTE_W|PTE_U);
   memmove(mem, init, sz);
 }
 
@@ -274,6 +290,9 @@ deallocuvm(pde_t *pgdir, uint oldsz, uint newsz)
   a = PGROUNDUP(newsz);
   for(; a  < oldsz; a += PGSIZE){
     pte = walkpgdir(pgdir, (char*)a, 0);
+    if(a <= 4*PGSIZE){ //skip over shared pages
+	continue;
+    }
     if(pte && (*pte & PTE_P) != 0){
       pa = PTE_ADDR(*pte);
       if(pa == 0)
@@ -305,21 +324,21 @@ freevm(pde_t *pgdir)
 // Given a parent process's page table, create a copy
 // of it for a child.
 pde_t*
-copyuvm(pde_t *pgdir, uint sz)
+copyuvm(pde_t *pgdir, uint sz, uint s)
 {
   pde_t *d;
-  pte_t *pte, *pte_s;
-  uint pa, pa_s, i, j;
-  char *mem, *mem_s;
+  pte_t *pte;
+  uint pa, i;
+  char *mem;
+
   if((d = setupkvm()) == 0)
     return 0;
-
-  for(i = MAPPED; i < sz; i += PGSIZE){
+  for(i = 4*PGSIZE; i < sz; i += PGSIZE){
     if((pte = walkpgdir(pgdir, (void*)i, 0)) == 0)
       panic("copyuvm: pte should exist");
     if(!(*pte & PTE_P))
       panic("copyuvm: page not present");
-    pa = PTE_ADDR(*pte);
+    pa = PTE_ADDR(*pte); //why is this here and not below? we may never know
     if((mem = kalloc()) == 0)
       goto bad;
     memmove(mem, (char*)pa, PGSIZE);
@@ -327,18 +346,24 @@ copyuvm(pde_t *pgdir, uint sz)
       goto bad;
   }
 
-  for(j = proc->ustack; j < USERTOP; j += PGSIZE){
-    if((pte_s = walkpgdir(pgdir, (void*)j, 0)) == 0)
-      panic("copyuvm: pte(stack) should exist");
-    if(!(*pte_s & PTE_P))
-      panic("copyuvm: page()stack not present");
-    pa_s = PTE_ADDR(*pte_s);
-    if((mem_s = kalloc()) == 0)
-      goto bad;
-    memmove(mem_s, (char*)pa_s, PGSIZE);
-    if(mappages(d, (void*)j, PGSIZE, PADDR(mem_s), PTE_W|PTE_U) < 0)
-      goto bad;
-  }
+  //checks
+  if((pte = walkpgdir(pgdir, (void*)(USERTOP-PGSIZE), 1)) == 0)
+    panic("broken pte");
+  if(!(*pte & PTE_P))
+    panic("broken page");
+  
+  //does it need to be before?
+  pa = PTE_ADDR(*pte);
+  if((mem = kalloc()) == 0)
+    goto bad;
+  
+  //copy stuffs
+  //changed order from above and compressed because why not, might not work
+  memmove(mem, (char*)pa, PGSIZE);
+  if(mappages(d, (void*)USERTOP-PGSIZE, PGSIZE, PADDR(mem), PTE_W|PTE_U) < 0)
+    goto bad;
+
+  //everything worked out good
   return d;
 
 bad:
@@ -368,7 +393,7 @@ copyout(pde_t *pgdir, uint va, void *p, uint len)
 {
   char *buf, *pa0;
   uint n, va0;
-
+  
   buf = (char*)p;
   while(len > 0){
     va0 = (uint)PGROUNDDOWN(va);

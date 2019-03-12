@@ -120,7 +120,7 @@ bootother: kernel/bootother.o
 
 initcode: kernel/initcode.o
 	$(LD) $(LDFLAGS) $(KERNEL_LDFLAGS) \
-		--entry=start --section-start=.text=0x4000 \
+		--entry=start --section-start=.text=0x0 \
 		--output=kernel/initcode.out kernel/initcode.o
 	$(OBJCOPY) -S -O binary kernel/initcode.out $@
 
@@ -143,3 +143,4 @@ kernel/%.d: kernel/%.c
 kernel/%.d: kernel/%.S
 	$(AS) $(CPPFLAGS) $(KERNEL_CPPFLAGS) $(CFLAGS) $(KERNEL_CFLAGS) \
 		-M -MG $< -MF $@ -MT $@ -MT $(<:.S=.o)
+

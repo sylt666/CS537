@@ -50,10 +50,14 @@ main(int argc, char *argv[])
   //argptr
   int n = write(fd, ptr2, 10);
   assert(n != -1);
-  
+
+	printf(1, "Initial Open and Write successful\n");
+
   //making sure edge case is checked
   n = write(fd, (char *)(ptr2 + 4094), 10);
   assert (n == -1);
+
+	printf(1, "Edge Case successful\n");
 
  assert(write(fd,(char *)(0x1000 + 400), 1024) != -1);
 

@@ -15,9 +15,12 @@ USER_PROGS := \
 	stressfs\
 	tester\
 	usertests\
+	nulltest\
 	wc\
+	bounds_str\
 	zombie\
-	null
+	shmget_test\
+	shmem_bound
 
 USER_PROGS := $(addprefix user/, $(USER_PROGS))
 
@@ -103,3 +106,4 @@ user/%.d: user/%.c
 user/%.d: user/%.S
 	$(CC) $(CPPFLAGS) $(USER_CPPFLAGS) $(ASFLAGS) $(USER_ASFLAGS) \
 		-M -MG $< -MF $@ -MT $@ -MT $(<:.S=.o)
+

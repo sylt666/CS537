@@ -17,10 +17,27 @@
 int
 fetchint(struct proc *p, uint addr, int *ip)
 {
-  if((addr >= p->sz && addr < p->ustack)
-    || (addr+4 > p->sz && addr < p->ustack)
-    || addr < MAPPED)
+  // 0 .void. 0x1000 ... sz .void. stack ... USERTOP nogo
+  // 0 - 0x1000
+  if(p->pid > 2 && addr < PGSIZE){
+    cprintf("1 int\n");
     return -1;
+  }
+
+  // sz to stack
+  if((addr >= p->sz || addr + 4 > p->sz) && addr < p->stack){
+    cprintf("2 int\n");
+    return -1;
+  }
+  
+  // over top
+  if(addr + 4 > USERTOP){
+    cprintf("3 int\n");
+    return -1;
+  }
+  
+  // passed
+  
   *ip = *(int*)(addr);
   return 0;
 }
@@ -32,20 +49,46 @@ int
 fetchstr(struct proc *p, uint addr, char **pp)
 {
   char *s, *ep;
-  if((addr >= p->sz && addr < p->ustack) || addr < MAPPED)
+  
+  // 0 .void. 0x1000 ... sz .void. stack ... USERTOP nogo
+  // 0 - 0x1000
+  if(p->pid > 2 && addr < PGSIZE){
+    cprintf("PGSIZE = %d\n", PGSIZE);
+    cprintf("4 str\n");
     return -1;
-  *pp = (char*)addr;
-  ep = (char*)p->sz;
-  if (addr < p->sz && addr >= MAPPED) {
-    for(s = *pp; s < ep; s++)
-      if(*s == 0)
-        return s - *pp;
-  } else if (addr >= p->ustack && addr < USERTOP - 1) {
-    for(s = *pp; s < (char*)USERTOP; s++)
-      if(*s == 0)
-        return s - *pp;
   }
 
+  // sz to stack
+  if(addr < p->stack){
+    if(addr >= p->sz){
+      cprintf("5.1 str\n");
+      return -1;
+    }
+    //cprintf("addr %x sz %x\n", addr, p->sz);
+    if(addr + 1 >= p->sz && addr < p->stack){
+      cprintf("5.2 str\n");
+      return -1;
+    }
+    ep = (char*)p->sz;
+  } else {
+    ep = (char*)USERTOP;
+  }
+  
+  // over top
+  if(addr > USERTOP){
+    cprintf("6 str\n");
+    return -1;
+  }
+  
+  
+  // passed
+  *pp = (char*)addr;
+  //cprintf("pp %x ep %x\n", pp, ep);
+  for(s = *pp; s < ep; s++) {
+    if(*s == 0){
+      return s - *pp;
+    }
+  }
   return -1;
 }
 
@@ -64,13 +107,32 @@ argptr(int n, char **pp, int size)
 {
   int i;
 
-  if(argint(n, &i) < 0)
+  //fetch value
+  if(argint(n, &i) < 0){
+    cprintf("7 arg\n");
     return -1;
-  if(((uint)i >= proc->sz && (uint)i < proc->ustack)
-        || ((uint)i+size > proc->sz && (uint)i < proc->ustack)
-        || ((uint)i+size>USERTOP)
-        || (uint)i < MAPPED)
+  }
+
+  // 0 .void. 0x1000 ... sz .void. stack ... USERTOP nogo
+  // 0 - 0x1000
+  if(proc->pid > 2 && (uint)i < PGSIZE){
+    cprintf("8 arg\n");
     return -1;
+  }
+
+  // sz to stack
+  if(((uint)i >= proc->sz || (uint)i + size > proc->sz) && ((uint)i < proc->stack)){
+    cprintf("9 arg\n");
+    return -1;
+  }
+  
+  // over top
+  if((uint)i+size > USERTOP){
+    cprintf("10 arg\n");
+    return -1;
+  }
+  
+  // passed
   *pp = (char*)i;
   return 0;
 }
@@ -85,16 +147,12 @@ argstr(int n, char **pp)
   int addr;
   if(argint(n, &addr) < 0)
     return -1;
-  if(((uint)addr >= proc->sz && (uint)addr < proc->ustack) ||
-     ((uint)addr+4 > proc->sz && (uint)addr < proc->ustack) ||
-     (uint)addr > USERTOP){
-    return -1;
-  }
   return fetchstr(proc, addr, pp);
 }
 
 // syscall function declarations moved to sysfunc.h so compiler
 // can catch definitions that don't match
+extern void* shmget(int);
 
 // array of function pointers to handlers for all the syscalls
 static int (*syscalls[])(void) = {
@@ -119,6 +177,7 @@ static int (*syscalls[])(void) = {
 [SYS_wait]    sys_wait,
 [SYS_write]   sys_write,
 [SYS_uptime]  sys_uptime,
+[SYS_shmget]  sys_shmget,
 };
 
 // Called on a syscall trap. Checks that the syscall number (passed via eax)
@@ -127,7 +186,7 @@ void
 syscall(void)
 {
   int num;
-
+  
   num = proc->tf->eax;
   if(num > 0 && num < NELEM(syscalls) && syscalls[num] != NULL) {
     proc->tf->eax = syscalls[num]();

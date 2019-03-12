@@ -11,7 +11,7 @@ exec(char *path, char **argv)
 {
   char *s, *last;
   int i, off;
-  uint argc, sz, sp, ustack[3+MAXARG+1], ustack_ceil;
+  uint argc, sz, sp, ustack[3+MAXARG+1], nstack;
   struct elfhdr elf;
   struct inode *ip;
   struct proghdr ph;
@@ -32,7 +32,11 @@ exec(char *path, char **argv)
     goto bad;
 
   // Load program into memory.
-  sz = MAPPED;
+  //sz = 0;
+  //if ((sz = allocuvm(pgdir, sz, sz+PGSIZE*4)) == 0)
+  //  goto bad; //block 4 pages
+  
+  sz = 4*PGSIZE;
   for(i=0, off=elf.phoff; i<elf.phnum; i++, off+=sizeof(ph)){
     if(readi(ip, (char*)&ph, off, sizeof(ph)) != sizeof(ph))
       goto bad;
@@ -40,7 +44,6 @@ exec(char *path, char **argv)
       continue;
     if(ph.memsz < ph.filesz)
       goto bad;
-    // ph.va has been augmented to 0x4000, so no need to add 0x4000
     if((sz = allocuvm(pgdir, sz, ph.va + ph.memsz)) == 0)
       goto bad;
     if(loaduvm(pgdir, (char*)ph.va, ip, ph.offset, ph.filesz) < 0)
@@ -49,13 +52,27 @@ exec(char *path, char **argv)
   iunlockput(ip);
   ip = 0;
 
-  // Allocate a one-page stack ont the top of user mem
-  if((ustack_ceil = allocuvm(pgdir, USERTOP - PGSIZE, USERTOP)) == 0)
+  // is the heap made above? we may never know xd
+  // change where the stack is made below, need 5 page free which idk
+  // im still lost on where the heap is going
+  // delete below if our stuff works
+  // Allocate a one-page stack at the next page boundary
+  /*
+  sz = PGROUNDUP(sz);
+  if((sz = allocuvm(pgdir, sz, sz + PGSIZE)) == 0)
     goto bad;
-  proc->ustack = USERTOP - PGSIZE;
+  */
+
+  // we need the stack at the top, so lets put it there,
+  // assign that to the new stack variable to know where it is
+  if((nstack = allocuvm(pgdir, USERTOP - PGSIZE, USERTOP)) == 0) {
+    panic("rip nstack allocation");
+    goto bad;
+  }
 
   // Push argument strings, prepare rest of stack in ustack.
-  sp = ustack_ceil;
+  sp = nstack; // changed to figure out where the new stack is
+
   for(argc = 0; argv[argc]; argc++) {
     if(argc >= MAXARG)
       goto bad;
@@ -84,9 +101,13 @@ exec(char *path, char **argv)
   // Commit to the user image.
   oldpgdir = proc->pgdir;
   proc->pgdir = pgdir;
-  proc->sz = PGROUNDUP(sz);
+  proc->sz = sz;
   proc->tf->eip = elf.entry;  // main
   proc->tf->esp = sp;
+  //cprintf("stack ptr 0x%x\n", sp);
+  proc->stack = USERTOP - PGSIZE; //stack address USERTOP-PGSIZE?, nstack?
+  //cprintf("stack start 0x%x\n", proc->stack);
+  //cprintf("nstack start 0x%x\n", nstack);
   switchuvm(proc);
   freevm(oldpgdir);
 
