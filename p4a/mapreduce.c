@@ -1,277 +1,338 @@
-#include <assert.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <pthread.h>
+////////////////////////////////////////////////////////////////////////////////
+// Includes
+////////////////////////////////////////////////////////////////////////////////
+
+#include<stdio.h>
+#include<stdlib.h>
 #include "mapreduce.h"
+#include<string.h>
+#include<pthread.h>
+#include <unistd.h>
 
-#define NUM_PARTITIONS 2
+/////////////////////////////////////////////////////////////////////////////////
+//Global Variables
+/////////////////////////////////////////////////////////////////////////////////
 
-typedef struct list {
-	char *val;
-	struct list *next;
-} List;
+struct table** p; //Partitions array
+Partitioner partitioner;
+Mapper mapper;
+Reducer reducer;
+int TABLE_SIZE=1543;
+int partition_number;
+pthread_mutex_t filelock=PTHREAD_MUTEX_INITIALIZER;
+int fileNumber;
+int current_file;
+int current_partition;
+pthread_mutex_t *partitionlock;
+struct node** reducenode;
 
-typedef struct key_valList {
-	char *key;
-	struct key_valList *next;
-	List *valList_head;
-	List *valList_curr_mHead;
-	List *valList_curr_rHead;
-} Key_valList;
+////////////////////////////////////////////////////////////////////////////////
+//HASH STUFF
+///////////////////////////////////////////////////////////////////////////////
 
-typedef struct mapperPartition {
-	int startIdx;
-	int endIdx;
-	Mapper map;
-	char **argv;
-} Mapper_Partition;
+//Bucket Element
+struct node{
+    char* key;
+    struct node *next;
+    struct subnode *subnode;
+    struct subnode *current;
+    int size;
+};
 
-typedef struct reducerPartition {
-	int startIdx;
-	int endIdx;
-	Reducer reduce;
-} Reducer_Partition;
+//Main Hash Table
+struct table{
+    int size;
+    struct node **list;
+    pthread_mutex_t *locks;
+    long long nodesize;
+    pthread_mutex_t keylock;
 
-pthread_mutex_t data_mutex;
-Key_valList data[NUM_PARTITIONS];
-Key_valList curr_partn_data[NUM_PARTITIONS];
+};
 
-void Map(char *file_name) {
-	FILE *fp = fopen(file_name, "r");
-	assert(fp != NULL);
-	char *line = NULL;
-	size_t size = 0;
-	while (getline(&line, &size, fp) != -1) {
-		char *token, *dummy = line;
-		while ((token = strsep(&dummy, " \t\n\r")) != NULL) {
-			MR_Emit(token, "1");
-		}
-	}
-	free(line);
-	fclose(fp);
+//Key Linked List
+struct subnode{
+    char* val;
+    struct subnode* next;
+};
+
+//Function used to instantiate the table
+struct table *createTable(int size){
+    struct table *t = (struct table*)malloc(sizeof(struct table));
+    t->size = size;
+    t->list = malloc(sizeof(struct node*)*size);
+    t->locks=malloc(sizeof(pthread_mutex_t)*size);
+    pthread_mutex_init(&t->keylock,NULL);
+    t->nodesize=0;
+    int i;
+    for(i=0;i<size;i++){
+        t->list[i] = NULL;
+        if(pthread_mutex_init(&(t->locks[i]), NULL)!=0)
+            printf("Locks init failed\n");
+    }
+    return t;
 }
 
-void Reduce(char *key, Getter get_next, int partition_number) {
-	int count = 0;
-	char *value;
-	while ((value = get_next(key, partition_number)) != NULL)
-		count++;
-	printf("%s : %d\n", key, count);
+ unsigned long long
+ hash(char *str)
+ {
+     unsigned long long hash = 5381;
+     int c;
+ 
+     while((c = *str++)!= '\0'){
+         hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
+     }
+     hash=hash%TABLE_SIZE;
+     return hash;
+ }
+
+//Insert into the hash map.
+void insert(struct table *t,char* key,char* val){  
+    long long pos=hash(key);
+    pthread_mutex_t *lock = t->locks + pos;
+    struct subnode *newSubNode=malloc(sizeof(struct subnode));
+    newSubNode->val=strdup(val);
+    newSubNode->next=NULL;
+    pthread_mutex_lock(lock);
+    struct node *list = t->list[pos];
+    struct node *temp = list;
+    while(temp){
+        if(strcmp(temp->key,key)==0){
+            struct subnode *sublist = temp->subnode;
+            newSubNode->next=sublist;
+            temp->size++;
+            temp->subnode = newSubNode;
+            temp->current = newSubNode;
+            pthread_mutex_unlock(lock);
+            return;
+        }
+        temp = temp->next;
+    }
+    pthread_mutex_lock(&t->keylock);
+    t->nodesize++;
+    pthread_mutex_unlock(&t->keylock);
+    struct node *newNode = malloc(sizeof(struct node));
+    newNode->key=strdup(key);
+    newNode->subnode=newSubNode;
+    newNode->current=newNode->subnode;    
+    newNode->next = list;
+    t->list[pos] = newNode;
+    pthread_mutex_unlock(lock);
 }
 
-char *GetNext(char *key, int pNum) {
-	/*if (data[pNum].valList_curr_rHead == NULL) {
-		data[pNum].valList_curr_rHead = data[pNum].valList_head;
-	}
-	if (data[pNum].valList_curr_rHead->val == NULL) {
-		free(data[pNum].valList_curr_rHead);
-		return NULL;
-	}
-	char* val = data[pNum].valList_curr_rHead->val;
-	data[pNum].valList_curr_mHead = data[pNum].valList_curr_rHead;
-	if (data[pNum].valList_curr_rHead->next == NULL) {
-		data[pNum].valList_curr_rHead->val = NULL;
-	} else {
-		data[pNum].valList_curr_rHead =
-				data[pNum].valList_curr_rHead->next;
-		free(data[pNum].valList_curr_mHead);
-	}
-	return val;*/
+//////////////////////////////////////////////////////////////////////////
+// Worker
+/////////////////////////////////////////////////////////////////////////
 
-	/********* CORRECT BELOW CODE **************/	
-	Key_valList *curr_pData = &curr_partn_data[pNum];
-	if(curr_pData->key==NULL || strcmp(curr_pData->key,key)!=0){
-		int key_found = 0;
-		Key_valList *temp = &data[pNum];		
-		while(temp->next!=NULL){
-			if(strcmp(temp->key,key)==0){
-				key_found = 1;
-				break;
-			}else{
-				temp = temp->next;
-			}			
-		}
-		if(key_found || temp->next==NULL){
-			curr_pData = temp;
-		}
-	}
-	//return next value for curr_pData->key
-	if (curr_pData->valList_curr_rHead == NULL) {
-		curr_pData->valList_curr_rHead = curr_pData->valList_head;
-	}
-	if (curr_pData->valList_curr_rHead->val == NULL) {
-		free(curr_pData->valList_curr_rHead);
-		return NULL;
-	}
-	char* val = curr_pData->valList_curr_rHead->val;
-	curr_pData->valList_curr_mHead = curr_pData->valList_curr_rHead;
-	if (curr_pData->valList_curr_rHead->next == NULL) {
-		curr_pData->valList_curr_rHead->val = NULL;
-	} else {
-		curr_pData->valList_curr_rHead =
-				curr_pData->valList_curr_rHead->next;
-		free(curr_pData->valList_curr_mHead);
-	}
-	return val;
-	/*********** CORRECT ABOVE CODE *************/
+ //Method used for qsort to sort our list of keys in the hashmap.
+ int compareKey(const void *s1, const void *s2)
+ {
+     struct node **n1 = (struct node **)s1;
+     struct node **n2 = (struct node **)s2;
+     if(*n1==NULL && *n2==NULL) {
+         return 0;
+     } else if(*n1==NULL) {
+         return -1;
+     } else if(*n2==NULL) {
+         return 1;
+     } else {
+     return strcmp((*n1)->key,(*n2)->key);
+     }
+ }
+
+
+//Getter function that returns the next key in a subnode list.
+char* get_next(char* key, int partition_num)
+{
+    struct node *tempnode= reducenode[partition_num];
+    struct subnode *addr = tempnode->current;
+    if(addr==NULL){
+        return NULL;
+      }
+     tempnode->current=addr->next;
+     return addr->val;
 }
 
-void *partitionAndMap(void* arg) {
-	Mapper_Partition *m = (Mapper_Partition*) arg;
-	int i;
-	for (i = m->startIdx; i < m->endIdx; i++) {
-		m->map(m->argv[i]);
-	}
-	return NULL;
+//////////////////////////////////////////////////////////////////////////
+// File Stuff
+//////////////////////////////////////////////////////////////////////////
+
+void* callMap(char *fileName){
+    mapper(fileName);
+    return NULL;
 }
 
-void *partitionAndReduce(void* arg) {
-	Reducer_Partition *w = (Reducer_Partition *) arg;
-	int pNum;
-	for (pNum = w->startIdx; pNum < w->endIdx; pNum++) {
-		Key_valList *temp = &data[pNum];
-		while(temp->next!=NULL){
-			w->reduce(temp->key, GetNext, pNum);
-			temp = temp->next;
-		}
-		if(temp->next==NULL){
-			w->reduce(temp->key, GetNext, pNum);
-		}
-	}
-	return NULL;
+void reduceHelper(int i){
+    if(p[i]==NULL)
+        return;
+    struct table* tempTable=p[i];
+    struct node *list[p[i]->nodesize];
+    long long x=0;
+    for(int j=0;j<TABLE_SIZE;j++){
+        if(tempTable->list[j] ==NULL)
+            continue;
+        struct node* tempNode=tempTable->list[j];
+        while(tempNode){
+            list[x]=tempNode;
+            x++;
+            tempNode=tempNode->next;
+        }
+    }
+    qsort(list,p[i]->nodesize,sizeof(struct node *),compareKey);
+    for(int k=0;k<x;k++){
+        reducenode[i]=list[k];
+        reducer(list[k]->key,get_next,i);
+    }
+}
+        
+         
+void* callReduce(){
+    while(1){
+        pthread_mutex_lock(&filelock);
+        int x;
+        if(current_partition>=partition_number){
+            pthread_mutex_unlock(&filelock);
+            return NULL;
+        }
+        if(current_partition<partition_number){
+            x=current_partition;
+            current_partition++;
+        }
+        pthread_mutex_unlock(&filelock);
+	    reduceHelper(x);
+    }    
 }
 
-void MR_Emit(char *key, char *value) {
-	unsigned long pNum = MR_DefaultHashPartition(key, NUM_PARTITIONS);
-	pthread_mutex_lock(&data_mutex);
-	int key_found = 0;
-	/*
-	data[pNum].key = (char *) malloc(strlen(key));
-	strcpy(data[pNum].key, key);
-	*/
-	Key_valList *temp = &data[pNum];
-	//printf("PNum: %lu , Key: %s , Address: %p\n",pNum,temp->key,(void*)temp);
-	printf("Pointing at %lu  Incoming Key: %s  ",pNum,key);
-	while(temp->next!=NULL){
-		if(strcmp(temp->key,key)==0){
-			printf("Found: %s in pNum: %lu\n",temp->key, pNum);
-			key_found = 1;
-			break;
-		}else{
-			temp = temp->next;
-		}			
-	}
-	if(!key_found && temp->key!=NULL && strcmp(temp->key,key)==0){
-		key_found = 1;
-		printf("Found: %s in pNum: %lu\n",temp->key, pNum);
-	}
-	if(!key_found){
-		Key_valList *new_data = (Key_valList *) malloc(sizeof(Key_valList));
-		new_data->key = strdup(key);
-		if(temp->key!=NULL){
-			temp->next = new_data; 
-			temp = new_data;
-		}
-		else{
-			temp->key = new_data->key;
-			temp->next = new_data->next;
-		}
-		printf("Added: %s in pNum: %lu\n",temp->key,pNum);
-	}
-
-	/*List *new_node = (List *) malloc(sizeof(List));
-	new_node->val = (char *) malloc(strlen(value));
-	strcpy(new_node->val, value);
-	if (data[pNum].valList_curr_mHead == NULL) {
-		data[pNum].valList_curr_mHead = (List *) malloc(sizeof(List));
-	}
-	data[pNum].valList_curr_mHead->next = new_node;
-	data[pNum].valList_curr_mHead = new_node;
-	if (data[pNum].valList_head == NULL) {
-		data[pNum].valList_head = (List *) malloc(sizeof(List));
-		data[pNum].valList_head = new_node;
-		data[pNum].valList_curr_mHead->next = NULL;
-	}*/
-
-	List *new_node = (List *) malloc(sizeof(List));
-	new_node->val = strdup(value);
-	if (temp->valList_head == NULL) {
-		temp->valList_head = new_node;
-		temp->valList_curr_mHead = new_node;
-	}else{
-		temp->valList_curr_mHead->next = new_node;
-		temp->valList_curr_mHead = new_node;
-	}
-	pthread_mutex_unlock(&data_mutex);
+void *findFile(void *files)
+{    
+    char **arguments = (char**) files;
+    while(1){
+        pthread_mutex_lock(&filelock);
+        int x;
+        if(current_file>fileNumber){
+            pthread_mutex_unlock(&filelock); 
+            return NULL;
+        }
+        if(current_file<=fileNumber){
+            x=current_file;
+            current_file++;
+        }
+        pthread_mutex_unlock(&filelock); 
+        callMap(arguments[x]);  
+    }
+    return NULL;
 }
 
+//////////////////////////////////////////////////////////////////////////
+// Master
+//////////////////////////////////////////////////////////////////////////
+
+//Default Hash partitioner
 unsigned long MR_DefaultHashPartition(char *key, int num_partitions) {
-	unsigned long hash = 5381;
-	int c;
-	while ((c = *key++) != '\0')
-		hash = hash * 33 + c;
-	return hash % num_partitions;
+    unsigned long hash = 5381;
+    int c;
+    while ((c = *key++) != '\0')
+        hash = hash * 33 + c;
+    return hash % num_partitions;
+    //return 1;
 }
 
-void MR_Run(int argc, char *argv[], Mapper map, int num_mappers, Reducer reduce,
-		int num_reducers, Partitioner partition) {
-	int i, num_files = argc - 1;
-	pthread_attr_t attr;
-	pthread_mutex_init(&data_mutex, NULL);
-	pthread_attr_init(&attr);
-	num_mappers = num_files > num_mappers ? num_mappers : num_files;
-	pthread_t mapThreads[num_mappers];
-	pthread_t reduceThreads[num_reducers];
-
-	// Map Phase
-	Mapper_Partition m[num_mappers];
-	size_t startIdx, endIdx;
-	size_t blockSize =
-			num_files > num_mappers ?
-					(num_files + num_mappers - 1) / num_mappers : 1;
-	startIdx = 1;
-	endIdx = startIdx + blockSize;
-	for (i = 0; i < num_mappers; i++) {
-		m[i].startIdx = startIdx;
-		m[i].endIdx = endIdx;
-		m[i].map = map;
-		m[i].argv = argv;
-		pthread_create(&mapThreads[i], NULL, partitionAndMap, (void*) &m[i]);
-		startIdx = endIdx;
-		endIdx = (
-				endIdx + blockSize < num_files ?
-						endIdx + blockSize : num_files + 1);
-	}
-	for (i = 0; i < num_mappers; i++) {
-		pthread_join(mapThreads[i], NULL);
-	}
-
-	// ReducePhase
-	Reducer_Partition w[num_reducers];
-	blockSize = NUM_PARTITIONS / num_reducers;
-	startIdx = 0;
-	endIdx = startIdx + blockSize;
-	for (i = 0; i < num_reducers; i++) {
-		w[i].startIdx = startIdx;
-		w[i].endIdx = endIdx;
-		w[i].reduce = reduce;
-		pthread_create(&reduceThreads[i], NULL, partitionAndReduce,
-				(void*) &w[i]);
-		startIdx = endIdx;
-		endIdx = (
-				endIdx + blockSize < NUM_PARTITIONS ?
-						endIdx + blockSize : NUM_PARTITIONS);
-	}
-	for (i = 0; i < num_reducers; i++) {
-		pthread_join(reduceThreads[i], NULL);
-	}
-
-	pthread_attr_destroy(&attr);
-	pthread_mutex_destroy(&data_mutex);
+//
+void MR_Emit(char *key, char *value){ //Key -> tocket, Value -> 1
+    long partitionNumber;
+    //printf("In MR_EMIT\n");
+    if(partitioner!=NULL){
+        partitionNumber = partitioner(key,partition_number);
+    }
+    else{
+        partitionNumber= MR_DefaultHashPartition(key,partition_number);
+    } 
+    insert(p[partitionNumber],key,value);    
 }
 
-int main(int argc, char *argv[]) {
-	MR_Run(argc, argv, Map, 10, Reduce, 10, MR_DefaultHashPartition);
-	return 0;
+////////////////////////////////////////////////////////////////////////////
+// Memory Cleanup
+////////////////////////////////////////////////////////////////////////////
+
+void freeTable(struct table *t)
+{
+    for(int i=0;i<t->size;i++)
+    {
+	    struct node *list1=t->list[i];
+        struct node *temp2=list1;
+        pthread_mutex_t *l=&(t->locks[i]);
+        while(temp2)
+        { 	
+            struct node *tempNode=temp2;
+            struct subnode *temp=tempNode->subnode;
+            while(temp){
+                struct subnode *sublist=temp;
+                temp=temp->next; 
+		        free(sublist->val);	
+                free(sublist);
+            }
+            temp2=temp2->next;
+		    free(tempNode->key);
+            free(tempNode); 
+	    }
+	    pthread_mutex_destroy(l);
+    }
+    free(t->locks);
+    free(t->list);
+    free(t);
 }
+
+////////////////////////////////////////////////////////////////////////////
+/* Main */
+///////////////////////////////////////////////////////////////////////////
+
+void MR_Run(int argc, char *argv[], Mapper map, int num_mappers, Reducer reduce, int num_reducers, 
+	        Partitioner partition)
+{   
+    //printf("IN MR_RUN\n");
+    current_partition=0;
+    current_file=1;
+    partitioner=partition;
+    mapper=map;
+    reducer=reduce;
+    partition_number=num_reducers; //Number of partitions
+    fileNumber=argc-1;
+    p=malloc(sizeof(struct table *)*num_reducers);
+    
+    //Create Partitions
+    for(int i=0;i<partition_number;i++){
+        struct table *table = createTable(TABLE_SIZE);
+        p[i]=table;
+    }
+    
+    //Start Mapping Process
+    pthread_t mappers[num_mappers];
+    for(int i=0;i<num_mappers || i==argc-1;i++){
+         pthread_create(&mappers[i], NULL,findFile,(void*) argv);
+    } 
+    //Join the Mappers       
+    for(int i=0;i<num_mappers || i==argc-1;i++)//Start joining all the threads
+    {
+            pthread_join(mappers[i], NULL);
+    }
+
+    //Start Reducing Process
+    pthread_t reducer[num_reducers];
+    reducenode=malloc(sizeof(struct node *) * num_reducers);
+    for(int i=0;i<num_reducers;i++){
+        pthread_create(&reducer[i],NULL,callReduce,NULL);
+    }
+    
+    //Join the Reducers
+    for(int i=0;i<num_reducers;i++){
+        pthread_join(reducer[i],NULL);
+    }
+    
+    //Memory clean-up
+    for(int i=0;i<partition_number;i++)
+	{	
+  	 	freeTable(p[i]);
+	}
+    free(partitionlock);
+    free(reducenode);
+    free(p);
+}    
