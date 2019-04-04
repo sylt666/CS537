@@ -1,6 +1,4 @@
-////////////////////////////////////////////////////////////////////////////////
-// Includes
-////////////////////////////////////////////////////////////////////////////////
+// Teryl Schmidt
 
 #include<stdio.h>
 #include<stdlib.h>
@@ -8,10 +6,6 @@
 #include<string.h>
 #include<pthread.h>
 #include <unistd.h>
-
-/////////////////////////////////////////////////////////////////////////////////
-//Global Variables
-/////////////////////////////////////////////////////////////////////////////////
 
 struct table** p; //Partitions array
 Partitioner partitioner;
@@ -25,10 +19,6 @@ int current_file;
 int current_partition;
 pthread_mutex_t *partitionlock;
 struct node** reducenode;
-
-////////////////////////////////////////////////////////////////////////////////
-//HASH STUFF
-///////////////////////////////////////////////////////////////////////////////
 
 //Bucket Element
 struct node{
@@ -119,10 +109,6 @@ void insert(struct table *t,char* key,char* val){
     pthread_mutex_unlock(lock);
 }
 
-//////////////////////////////////////////////////////////////////////////
-// Worker
-/////////////////////////////////////////////////////////////////////////
-
  //Method used for qsort to sort our list of keys in the hashmap.
  int compareKey(const void *s1, const void *s2)
  {
@@ -151,10 +137,6 @@ char* get_next(char* key, int partition_num)
      tempnode->current=addr->next;
      return addr->val;
 }
-
-//////////////////////////////////////////////////////////////////////////
-// File Stuff
-//////////////////////////////////////////////////////////////////////////
 
 void* callMap(char *fileName){
     mapper(fileName);
@@ -222,10 +204,6 @@ void *findFile(void *files)
     return NULL;
 }
 
-//////////////////////////////////////////////////////////////////////////
-// Master
-//////////////////////////////////////////////////////////////////////////
-
 //Default Hash partitioner
 unsigned long MR_DefaultHashPartition(char *key, int num_partitions) {
     unsigned long hash = 5381;
@@ -239,7 +217,6 @@ unsigned long MR_DefaultHashPartition(char *key, int num_partitions) {
 //
 void MR_Emit(char *key, char *value){ //Key -> tocket, Value -> 1
     long partitionNumber;
-    //printf("In MR_EMIT\n");
     if(partitioner!=NULL){
         partitionNumber = partitioner(key,partition_number);
     }
@@ -248,10 +225,6 @@ void MR_Emit(char *key, char *value){ //Key -> tocket, Value -> 1
     } 
     insert(p[partitionNumber],key,value);    
 }
-
-////////////////////////////////////////////////////////////////////////////
-// Memory Cleanup
-////////////////////////////////////////////////////////////////////////////
 
 void freeTable(struct table *t)
 {
@@ -281,14 +254,9 @@ void freeTable(struct table *t)
     free(t);
 }
 
-////////////////////////////////////////////////////////////////////////////
-/* Main */
-///////////////////////////////////////////////////////////////////////////
-
 void MR_Run(int argc, char *argv[], Mapper map, int num_mappers, Reducer reduce, int num_reducers, 
 	        Partitioner partition)
 {   
-    //printf("IN MR_RUN\n");
     current_partition=0;
     current_file=1;
     partitioner=partition;
