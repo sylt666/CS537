@@ -1,0 +1,3 @@
+For this project, we modified xv6 and added several system calls and user functions.
+First, in proc.c, we added 2 system calls: join() and clone(). clone() clones a process and create a child thread. join() waits a child thread of current process till finish. We also modified several functions in proc.c, such as wait(), growproc() and exit().
+Second, in ulib.c we added several functions: thread_create(), thread_join(), lock_acquire(), lock_release(), and lock_init(). In thread_create(), we alloc two pages and find a page-aligned address within these two pages. These two address will be stored in a global array. Then, in thread_join(), we iterate through the global array and find the right adress that need to be free.

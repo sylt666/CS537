@@ -1,0 +1,170 @@
+starting build
+
+**********************************************************************
+
+Test build
+build xv6 using make
+
+**********************************************************************
+Trying to build project using make
+make
+make: *** No targets specified and no makefile found.  Stop.
+
+
+test build FAILED
+ (build xv6 using make)
+ make failed (error 2)
+ required file 'xv6.img' does not exist after make
+ required file 'fs.img' does not exist after make
+
+starting null
+
+**********************************************************************
+
+Test null
+null pointer dereference should kill process
+
+**********************************************************************
+Running xv6 user progam /u/c/s/cs537-1/ta/tests/3b-new/ctests/null.c
+IOError: [Errno 2] No such file or directory: '/tmp/tmp2vDHnU/p/user/tester.c'
+
+
+test null FAILED (0 of 10)
+ (null pointer dereference should kill process)
+ Unexpected exception [Errno 2] No such file or directory: '/tmp/tmp2vDHnU/p/user/tester.c'
+
+starting null2
+
+**********************************************************************
+
+Test null2
+any dereference from first two pages should fault
+
+**********************************************************************
+Running xv6 user progam /u/c/s/cs537-1/ta/tests/3b-new/ctests/null2.c
+IOError: [Errno 2] No such file or directory: '/tmp/tmp2vDHnU/p/user/tester.c'
+
+
+test null2 FAILED (0 of 10)
+ (any dereference from first two pages should fault)
+ Unexpected exception [Errno 2] No such file or directory: '/tmp/tmp2vDHnU/p/user/tester.c'
+
+starting bounds
+
+**********************************************************************
+
+Test bounds
+syscall argument checks (null page, code/heap boundaries)
+
+**********************************************************************
+Running xv6 user progam /u/c/s/cs537-1/ta/tests/3b-new/ctests/bounds.c
+IOError: [Errno 2] No such file or directory: '/tmp/tmp2vDHnU/p/user/tester.c'
+
+
+test bounds FAILED (0 of 10)
+ (syscall argument checks (null page, code/heap boundaries))
+ Unexpected exception [Errno 2] No such file or directory: '/tmp/tmp2vDHnU/p/user/tester.c'
+
+starting protect_args
+
+**********************************************************************
+
+Test protect_args
+mprotect/munprotect arguments
+
+**********************************************************************
+Running xv6 user progam /u/c/s/cs537-1/ta/tests/3b-new/ctests/protect_args.c
+IOError: [Errno 2] No such file or directory: '/tmp/tmp2vDHnU/p/user/tester.c'
+
+
+test protect_args FAILED (0 of 10)
+ (mprotect/munprotect arguments)
+ Unexpected exception [Errno 2] No such file or directory: '/tmp/tmp2vDHnU/p/user/tester.c'
+
+starting protect_fail
+
+**********************************************************************
+
+Test protect_fail
+mprotect/munprotect failure should not affect the system
+
+**********************************************************************
+Running xv6 user progam /u/c/s/cs537-1/ta/tests/3b-new/ctests/protect_fail.c
+IOError: [Errno 2] No such file or directory: '/tmp/tmp2vDHnU/p/user/tester.c'
+
+
+test protect_fail FAILED (0 of 20)
+ (mprotect/munprotect failure should not affect the system)
+ Unexpected exception [Errno 2] No such file or directory: '/tmp/tmp2vDHnU/p/user/tester.c'
+
+starting protect_basic
+
+**********************************************************************
+
+Test protect_basic
+basic mprotect/munprotect functionalities
+
+**********************************************************************
+Running xv6 user progam /u/c/s/cs537-1/ta/tests/3b-new/ctests/protect_basic.c
+IOError: [Errno 2] No such file or directory: '/tmp/tmp2vDHnU/p/user/tester.c'
+
+
+test protect_basic FAILED (0 of 20)
+ (basic mprotect/munprotect functionalities)
+ Unexpected exception [Errno 2] No such file or directory: '/tmp/tmp2vDHnU/p/user/tester.c'
+
+starting protect_advanced
+
+**********************************************************************
+
+Test protect_advanced
+mprotect/munprotect behaviors on fork
+
+**********************************************************************
+Running xv6 user progam /u/c/s/cs537-1/ta/tests/3b-new/ctests/protect_advanced.c
+IOError: [Errno 2] No such file or directory: '/tmp/tmp2vDHnU/p/user/tester.c'
+
+
+test protect_advanced FAILED (0 of 20)
+ (mprotect/munprotect behaviors on fork)
+ Unexpected exception [Errno 2] No such file or directory: '/tmp/tmp2vDHnU/p/user/tester.c'
+
+**********************************************************************
+Summary:
+test build FAILED
+ (build xv6 using make)
+ make failed (error 2)
+ required file 'xv6.img' does not exist after make
+ required file 'fs.img' does not exist after make
+
+test null FAILED (0 of 10)
+ (null pointer dereference should kill process)
+ Unexpected exception [Errno 2] No such file or directory: '/tmp/tmp2vDHnU/p/user/tester.c'
+
+test null2 FAILED (0 of 10)
+ (any dereference from first two pages should fault)
+ Unexpected exception [Errno 2] No such file or directory: '/tmp/tmp2vDHnU/p/user/tester.c'
+
+test bounds FAILED (0 of 10)
+ (syscall argument checks (null page, code/heap boundaries))
+ Unexpected exception [Errno 2] No such file or directory: '/tmp/tmp2vDHnU/p/user/tester.c'
+
+test protect_args FAILED (0 of 10)
+ (mprotect/munprotect arguments)
+ Unexpected exception [Errno 2] No such file or directory: '/tmp/tmp2vDHnU/p/user/tester.c'
+
+test protect_fail FAILED (0 of 20)
+ (mprotect/munprotect failure should not affect the system)
+ Unexpected exception [Errno 2] No such file or directory: '/tmp/tmp2vDHnU/p/user/tester.c'
+
+test protect_basic FAILED (0 of 20)
+ (basic mprotect/munprotect functionalities)
+ Unexpected exception [Errno 2] No such file or directory: '/tmp/tmp2vDHnU/p/user/tester.c'
+
+test protect_advanced FAILED (0 of 20)
+ (mprotect/munprotect behaviors on fork)
+ Unexpected exception [Errno 2] No such file or directory: '/tmp/tmp2vDHnU/p/user/tester.c'
+
+Passed 0 of 8 tests.
+Overall 0 of 8
+Points 0 of 100

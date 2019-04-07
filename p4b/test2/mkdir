@@ -1,0 +1,88 @@
+ll
+forktest
+tester
+sh
+usertests
+wc
+README
+zombie
+grep
+ln
+init
+balloc: first 441 blocks have been allocated
+balloc: write bitmap block at sector 28
+rm user/bin/tester
+make qemu-nox
+Ctrl+a h for help
+/u/c/s/cs537-1/ta/tools/qemu -nographic -hdb fs.img xv6.img -smp 2
+WARNING: Image format was not specified for 'fs.img' and probing guessed raw.
+         Automatically detecting the format is dangerous for raw images, write operations on block 0 will be restricted.
+         Specify the 'raw' format explicitly to remove the restrictions.
+WARNING: Image format was not specified for 'xv6.img' and probing guessed raw.
+         Automatically detecting the format is dangerous for raw images, write operations on block 0 will be restricted.
+         Specify the 'raw' format explicitly to remove the restrictions.
+xv6...
+lapicinit: 1 0xfee00000
+cpu1: starting
+cpu0: starting
+init: starting sh
+$ tester
+tester
+void *stack in sys_clone 12288
+pid 4 tester: trap 14 err 5 on cpu 1 eip 0x60 addr 0xffffffff--kill proc
+user/tester.c:69 check (arg1 == 0x12341234) failed: arg1 is incorrect
+TEST FAILED
+
+
+test clone_arguments FAILED (0 of 10)
+ (test for arguments to clone() and join())
+ tester failed
+
+Skipped 7 tests.
+To keep testing after failing a test, use flag '-c' or '--continue'
+[carrasco@snares-07] (49)$ clear
+File Edit Options Buffers Tools C Help
+                                                                                          |/*
+  for(i = 0; i < NOFILE; i++)                                                             | * test for arguments to clone() and join()
+    if(proc->ofile[i])                                                                    | * Authors:
+      np->ofile[i] = filedup(proc->ofile[i]);                                             | * - Varun Naik, Spring 2018
+  np->cwd = idup(proc->cwd);                                                              | */
+                                                                                          |#include "types.h"
+  pid = np->pid;                                                                          |#include "stat.h"
+  np->state = RUNNABLE;                                                                   |#include "user.h"
+  safestrcpy(np->name, proc->name, sizeof(proc->name));                                   |
+  return pid;                                                                             |#define PGSIZE 0x1000
+}                                                                                         |#define check(exp, msg) if(exp) {} else {\
+                                                                                          |  printf(1, "%s:%d check (" #exp ") failed: %s\n", __FILE__, __LINE__, msg);\
+int                                                                                       |  printf(1, "TEST FAILED\n");\
+join(void** stack)                                                                        |  kill(ppid);\
+{                                                                                         |  exit();}
+  struct proc *p;                                                                         |
+  int havekids, pid;                                                                      |int ppid = 0;
+  acquire(&ptable.lock);                                                                  |volatile int cpid = 0;
+  for(;;){                                                                                |volatile int global = 0;
+    // Scan through table looking for zombie children.                                    |
+    havekids = 0;                                                                         |void
+    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){                                   |func(void *arg1, void *arg2)
+      if((p->parent != proc) || (p->pgdir != proc->pgdir))                                |{
+        continue;                                                                         |  volatile int retval;
+      havekids = 1;                                                                       |
+      if(p->state == ZOMBIE){                                                             |  // Assign retval to return value of clone()
+        // Found one.                                                                     |  asm volatile("movl %%eax,%0" : "=r"(retval));
+        pid = p->pid;                                                                     |
+        kfree(p->kstack);                                                                 |  check(*(int *)arg1 == 0xABCDABCD, "*arg1 is incorrect");
+        p->kstack = 0;                                                                    |  check(*(int *)arg2 == 0xCDEFCDEF, "*arg2 is incorrect");
+        p->state = UNUSED;                                                                |  check(((uint)&retval % PGSIZE) == 0xFE4, "Local variable is in wrong location");
+        p->pid = 0;                                                                       |  check(retval == 0, "Return value of clone() in child is incorrect");
+        p->parent = 0;                                                                    |
+        p->name[0] = 0;                                                                   |  // Change external state
+        p->killed = 0;                                                                    |  *(int *)arg1 = 0x12341234;
+        *stack = p->ustack;                                                               |  cpid = getpid();
+        release(&ptable.lock);                                                            |  check(cpid > ppid, "getpid() returned the wrong pid");
+        return pid;                                                                       |  ++global;
+      }                                                                                   |
+    }                                                                                     |  exit();
+                                                                                          |
+    // No point waiting if we don't have any children.                                    |  check(0, "Continued after exit");
+-UU-:----F1  proc.c         38% L248  Git:master  (C/l Abbrev) ---------------------------|-UU-:%%--F1  clone_arguments.c   Top L1     (C/l Abbrev) ---------------------------------
+Beginning of buffeear`

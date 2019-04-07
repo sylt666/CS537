@@ -1,0 +1,143 @@
+starting build
+starting good
+starting goodlarge
+starting goodrefcnt
+starting goodlink
+starting goodrm
+starting nonexistant
+starting badroot
+starting badinode
+starting badaddr
+starting badindir1
+starting badroot2
+starting badfmt
+starting mrkfree
+starting indirfree
+starting mrkused
+starting addronce
+starting addronce2
+starting imrkused
+starting imrkfree
+starting badrefcnt
+starting badrefcnt2
+starting badindir2
+starting dironce
+starting badlarge
+starting valgrind
+starting valgrind2
+starting valgrind3
+starting mismatch
+Failure: ./xcheck returned incorrect status code. Expected 1 got 0
+starting loop
+Failure: ./xcheck returned incorrect status code. Expected 1 got 0
+starting repair
+test build PASSED
+ (build project using make)
+
+test good PASSED (5 of 5)
+ (Run on a good file system)
+
+test goodlarge PASSED (5 of 5)
+ (Run on large good file system)
+
+test goodrefcnt PASSED (5 of 5)
+ (Run on a file system with only good file reference counts)
+
+test goodlink PASSED (5 of 5)
+ (Run on a file system with only good directory link counts)
+
+test goodrm PASSED (5 of 5)
+ (Run on a good file system having some files removed)
+
+test nonexistant PASSED (5 of 5)
+ (Run on a nonexistant file system)
+
+test badroot PASSED (5 of 5)
+ (Run on a file system with a root directory in bad location)
+
+test badinode PASSED (5 of 5)
+ (Run on a file system with a bad type in an inode)
+
+test badaddr PASSED (5 of 5)
+ (Run on a file system with a bad direct address in an inode)
+
+test badindir1 PASSED (5 of 5)
+ (Run on a file system with a bad indirect address in an inode)
+
+test badroot2 PASSED (5 of 5)
+ (Run on a file system with a bad root directory in good location)
+
+test badfmt PASSED (5 of 5)
+ (Run on a file system without . or .. directories)
+
+test mrkfree PASSED (5 of 5)
+ (Run on a file system with an inuse direct block marked free)
+
+test indirfree PASSED (5 of 5)
+ (Run on a file system with an inuse indirect block marked free)
+
+test mrkused PASSED (5 of 5)
+ (Run on a file system with a free block marked used)
+
+test addronce PASSED (5 of 5)
+ (Run on a file system with a direct address used more than once)
+
+test addronce2 PASSED (5 of 5)
+ (Run on a file system with an indirect address used more than once)
+
+test imrkused PASSED (5 of 5)
+ (Run on a file system with inode marked used, but not referenced in a directory)
+
+test imrkfree PASSED (5 of 5)
+ (Run on a file system with inode marked free, but referenced in a directory)
+
+test badrefcnt PASSED (5 of 5)
+ (Run on a file system which has an inode that is referenced less than its reference count)
+
+test badrefcnt2 PASSED (5 of 5)
+ (Run on a file system which has an inode that is referenced more than its reference count)
+
+test badindir2 PASSED (5 of 5)
+ (Run on a file system with a bad indirect address in an inode)
+
+test dironce PASSED (5 of 5)
+ (Run on a file system with a directory appearing more than once)
+
+test badlarge PASSED (5 of 5)
+ (Run on a large file system with an indirect directory appearing more than once)
+
+test valgrind PASSED (5 of 5)
+ (Run valgrind on xcheck)
+
+test valgrind2 PASSED (5 of 5)
+ (Run valgrind on xcheck)
+
+test valgrind3 PASSED (5 of 5)
+ (Run valgrind on xcheck)
+
+test mismatch FAILED
+ (Run on a filesystem with .. pointing to the wrong directory)
+ ./xcheck returned incorrect status code. Expected 1 got 0
+
+ Test it yourself by running
+ xcheck /u/c/s/cs537-1/ta/tests/5a-new/images/mismatch
+ and check out the test folder
+ /u/c/s/cs537-1/ta/tests/5a-new/err/mismatch
+ to compare your error output with reference outputs. 
+
+test loop FAILED
+ (Run on a filesystem with a loop in the directory tree)
+ ./xcheck returned incorrect status code. Expected 1 got 0
+
+ Test it yourself by running
+ xcheck /u/c/s/cs537-1/ta/tests/5a-new/images/loop
+ and check out the test folder
+ /u/c/s/cs537-1/ta/tests/5a-new/err/loop
+ to compare your error output with reference outputs. 
+
+test repair FAILED
+ (Repair a filesystem with lost inodes, check if every lost inode is found)
+ image is not correctly repaired.
+
+Overall 28 of 31
+Points 135 of 135

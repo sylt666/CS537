@@ -1,0 +1,5 @@
+This is the README file of p2a.
+The program has two functions: 
+(1) A parse function that parse the string based on modes, and return an array of the tokens, and the end index of the array. There are three modes for tokenization: space mode, redirection mode, and parallel mode.
+
+(2) The main function was implemented based on project description. Based on command line arguement, it first chooses mode: batch or interactive. It then read command line by line. For each line of the command, it first split the command by '&', then it check if the command is build-in command or basic function, and excutes them respectively. During the process, the program does a bunch of error detection.

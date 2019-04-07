@@ -1,0 +1,6 @@
+For this mapreduce project, we used a hash table for fast insertion.
+In the mapping phase, we call map function on files and insert key-value pairs into a hash table.
+Collisions were handled with linked lists. Rehashings were done when needed.
+After mapping, we traverse the hashtable and turn it into a partition table, then we sort the partition table.
+At the end, we traverse the partition table and let the reducers do computation on each key-value pairs.
+

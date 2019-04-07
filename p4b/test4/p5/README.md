@@ -1,0 +1,1 @@
+developed a working file system checker. A checker reads in a file system image and makes sure that it is consistent. When it isn't, the checker takes steps to repair the problem it sees; however, this project does not implement the repairs
