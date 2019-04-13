@@ -129,8 +129,6 @@ growproc(int n)
 
   struct proc *p;
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-      // only consider threads (including parent process)
-      // when a thread sets the heap, we need to update all its sibling threads 
       if(p->pgdir == proc->pgdir)
         p->sz = proc->sz;
   }
@@ -178,20 +176,16 @@ fork(void)
   return pid;
 }
 
-// clone(void(*fcn) (void *, void *), void *arg1, void *arg2, void *stack);
 int
 clone(void(*fcn) (void *, void *), void *arg1, void *arg2, void *stack) {
-  // cprintf("clone stack: %d, proc->sz: %d\n", stack, proc->sz);
   int i, pid;
   struct proc *np;
 
   // allocate a process slot in the process table
   if((np = allocproc()) == 0)
     return -1;
-  // the new thread’s np->pgdir should be the same as the parent’s 
-  // they share the same address space, and thus have the same page table.
   np->pgdir = proc->pgdir;
-  np->sz = proc->sz; // cprintf("proc->sz: %d\n", proc->sz);
+  np->sz = proc->sz;
   np->parent = proc;
   *np->tf = *proc->tf;
   np->tstack = (uint) stack; // top pointer of stack of thread
@@ -204,17 +198,14 @@ clone(void(*fcn) (void *, void *), void *arg1, void *arg2, void *stack) {
   ustack[2] = (uint) arg2;
 
   uint sp = (uint) stack + PGSIZE - sizeof(uint)*3;
-  // copyout(pde_t *pgdir, uint va, void *p, uint len) copies len bytes from p to user address va 
-  // in page table pgdir. Most useful when pgdir is not the current page table.
-  // it's copying argv[argc] to the user address which starts from pgdir 
+
   if(copyout(np->pgdir, sp, ustack, sizeof(uint)*3) < 0)
     return -1;
 
   np->tf->eip = (uint) fcn; // where the function of this thread starts
   np->tf->esp = sp;
 
-  // below is like copy the files that parent are used to child 
-  // struct file is defined in file.h
+
   for (i = 0; i < NOFILE; i++)
     if (proc->ofile[i])
       np->ofile[i] = filedup(proc->ofile[i]);
@@ -230,9 +221,7 @@ clone(void(*fcn) (void *, void *), void *arg1, void *arg2, void *stack) {
   return pid;
 }
 
-// Exit the current process.  Does not return.
-// An exited process remains in the zombie state
-// until its parent calls wait() to find out it exited.
+// Exit the current process
 void
 exit(void)
 {
@@ -258,10 +247,6 @@ exit(void)
   // Parent might be sleeping in wait().
   wakeup1(proc->parent);
 
-  // Pass abandoned children to init.
-  // when a thread is abandoned by its parent, we set its partent to initproc
-  // initproc will somehow set the thread to zombie after the thread exits
-  // but we don't know how this be done by initproc 
   for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
     if(p->parent == proc){
       p->parent = initproc;
